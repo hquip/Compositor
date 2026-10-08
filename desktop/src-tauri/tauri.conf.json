@@ -1,0 +1,12 @@
+{
+  "$schema": "https://schema.tauri.app/config/2",
+  "productName": "Compositor Compatible",
+  "version": "0.11.0",
+  "identifier": "com.hquip.compositor.compatible",
+  "build": { "beforeBuildCommand": "node scripts/build-compatible.mjs", "frontendDist": "../compatible-www" },
+  "app": {
+    "windows": [{ "label": "main", "title": "Compositor", "width": 1380, "height": 900, "minWidth": 900, "minHeight": 620 }],
+    "security": { "csp": null }
+  },
+  "bundle": { "active": true, "targets": ["app", "dmg", "deb", "appimage"], "icon": ["../renderer/app-icon.png"], "macOS": { "minimumSystemVersion": "12.0" }, "linux": { "deb": { "depends": ["libwebkit2gtk-4.1-0", "libgtk-3-0"] } } }
+}

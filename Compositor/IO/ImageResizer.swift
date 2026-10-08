@@ -24,10 +24,10 @@ actor ImageResizer {
         let old = snapshot.manifest
         var manifest = ProjectManifest(resolution: options.resolution, documentID: old.documentID,
             width: options.width, height: options.height, activeLayerID: old.activeLayerID, layers: [],
-            guides: old.guides, hdrView: old.hdrView, hdrWorkingSpace: old.hdrWorkingSpace)
+            guides: old.guides, hdrView: old.hdrView, hdrWorkingSpace: old.hdrWorkingSpace, resources: old.resources, workflow: old.workflow)
         if old.width == options.width && old.height == options.height {
             manifest.layers = old.layers
-            return ProjectSnapshot(manifest: manifest, images: snapshot.images, masks: snapshot.masks, filterSources: snapshot.filterSources, filterMasks: snapshot.filterMasks, hdrSources: snapshot.hdrSources, exrSources: snapshot.exrSources)
+            return ProjectSnapshot(manifest: manifest, images: snapshot.images, masks: snapshot.masks, filterSources: snapshot.filterSources, filterMasks: snapshot.filterMasks, hdrSources: snapshot.hdrSources, exrSources: snapshot.exrSources, workflowSources: snapshot.workflowSources)
         }
         guard options.width * options.height <= DocumentLimits.maxSurfacePixels else { throw ProjectError.tooLarge }
         let sx = CGFloat(options.width) / CGFloat(old.width)
@@ -38,7 +38,7 @@ actor ImageResizer {
         var usedPixels = 0, usedMaskPixels = 0
         for layer in old.layers {
             try Task.checkCancellation()
-            if layer.text != nil || layer.shape != nil || layer.vectorPath != nil || layer.filterSourceFile != nil || layer.hdrSourceFile != nil || layer.smartObject != nil {
+            if layer.text != nil || layer.shape != nil || layer.vectorPath != nil || layer.filterSourceFile != nil || layer.hdrSourceFile != nil || layer.smartObject != nil || layer.workflow != nil {
                 let scale = CGAffineTransform(scaleX: sx, y: sy)
                 func scaled(_ original: LayerTransform) throws -> LayerTransform {
                     let map = original.unitToDocument.concatenating(scale)
@@ -134,7 +134,7 @@ actor ImageResizer {
             manifest.layers.append(record)
         }
         return ProjectSnapshot(manifest: manifest, images: images, masks: masks, filterSources: snapshot.filterSources,
-            filterMasks: snapshot.filterMasks, hdrSources: snapshot.hdrSources, exrSources: snapshot.exrSources)
+            filterMasks: snapshot.filterMasks, hdrSources: snapshot.hdrSources, exrSources: snapshot.exrSources, workflowSources: snapshot.workflowSources)
     }
 }
 

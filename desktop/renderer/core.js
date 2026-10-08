@@ -1,7 +1,11 @@
 export const MAX_SIDE = 30000;
-export const FORMAT_VERSION = 16;
+export const FORMAT_VERSION = 17;
 export function documentPixels(editor) {
   let pixels = [...editor.images.values(), ...editor.masks.values()].reduce((sum, image) => sum + image.width * image.height, 0);
+  for (const resource of editor.manifest?.resources ?? []) if (resource.kind === 'channels' && editor.assets[resource.file]) {
+    const bytes = Uint8Array.from(atob(editor.assets[resource.file].slice(0, 44)), (c) => c.charCodeAt(0));
+    if (bytes.length >= 28) { const view = new DataView(bytes.buffer); pixels += view.getUint32(8, true) * view.getUint32(12, true) * view.getUint32(24, true) * view.getUint32(20, true) / 32; }
+  }
   for (const layer of editor.manifest?.layers ?? []) if (layer.filterSourceFile && editor.assets[layer.filterSourceFile]) {
     const bytes = Uint8Array.from(atob(editor.assets[layer.filterSourceFile].slice(0, 44)), (c) => c.charCodeAt(0));
     if (bytes.length >= 25) { const view = new DataView(bytes.buffer); pixels += view.getUint32(16) * view.getUint32(20) * (bytes[24] === 16 ? 2 : 1); }

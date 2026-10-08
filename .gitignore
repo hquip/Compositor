@@ -34,6 +34,8 @@ desktop/windows/bin/
 desktop/windows/obj/
 desktop/desktop/
 desktop/renderer/vendor/
+desktop/compatible-www/
+desktop/src-tauri/target/
 CrossPlatformResults/
 *.xcresult/
 .env.*

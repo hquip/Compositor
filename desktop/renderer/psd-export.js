@@ -5,6 +5,9 @@ import { documentPoint, canvasSize } from './core.js';
 import { alphaBounds, placedMask, maskOutside, pixelMatrix } from './raster-space.js';
 import { textSpans } from './text-style.js';
 import { settingsDialog, boolField } from './settings-dialog.js';
+import { patchPhotoshopDepth, precisionPhotoshopSources } from './photoshop-precision-export.js';
+import { composeChannels } from './channel-compose.js';
+import { resourceBytes } from './workflow-assets.js';
 import { renderVector } from './vector-render.js';
 
 const rgb = (color) => ({ r: Math.round((color.red ?? 0) * 255), g: Math.round((color.green ?? 0) * 255), b: Math.round((color.blue ?? 0) * 255) });
@@ -59,7 +62,7 @@ export function buildPhotoshop(editor, { flatten = false, editableText = true } 
       let canvas, left, top, width, height;
       if (layer.effects && Object.keys(layer.effects).length) {
         const isolated = structuredClone(layer); delete isolated.parentID; delete isolated.maskSourceID; isolated.opacity = 1; isolated.blendMode = 'Normal'; isolated.isVisible = true;
-        const rendered = compose({ ...manifest, layers: [isolated] }, editor.images, editor.masks), bounds = alphaBounds(rendered) ?? { x: 0, y: 0, width: 1, height: 1 };
+        const rendered = compose({ ...manifest, layers: [isolated] }, editor.images, editor.masks, 1, editor.assets), bounds = alphaBounds(rendered) ?? { x: 0, y: 0, width: 1, height: 1 };
         ({ x: left, y: top, width, height } = bounds); canvas = allocate(width, height); canvas.getContext('2d').drawImage(rendered, -left, -top);
       } else {
         const points = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }].map((p) => documentPoint(p, layer.transform));
@@ -97,11 +100,17 @@ export function binaryBase64(bytes) { let text = ''; for (let i = 0; i < bytes.l
 export function installPhotoshopExport(editor, api) {
   const previous = editor.advancedCommand;
   editor.advancedCommand = async (command) => {
+    if(command === 'export-photoshop-original') {
+      const file=editor.manifest?.workflow?.photoshop?.file;if(!file)throw new Error('This project has no retained Photoshop source.');
+      const bytes=resourceBytes(editor.assets,file),format=new DataView(bytes.buffer,bytes.byteOffset,bytes.byteLength).getUint16(4)===2?'psb':'psd';const result=await window.desktop.exportFile(binaryBase64(bytes),format,editor.name+'-original');if(!result.ok)throw new Error(result.error);return true;
+    }
     if (!['export-psd', 'export-psb'].includes(command)) return previous(command);
     if (!editor.manifest) return true; editor.projectSnapshot(); const info = photoshopReport(editor);
     const note = document.createElement('p'); note.className = 'export-conversions'; note.textContent = [...info.report, ...info.unsupported].join('\n') || 'Layers, groups, masks, blend modes, and compatible text and adjustments will be preserved.';
     const value = await settingsDialog('Export Photoshop document', [boolField('flatten', 'Flatten image', info.unsupported.length > 0), boolField('editableText', 'Keep text editable', true)], {}, null, { previewElement: note }); if (!value) return true;
-    const data = new Uint8Array(writePsd(buildPhotoshop(editor, value), { psb: command === 'export-psb', generateThumbnail: false, invalidateTextLayers: false }));
+    let data = new Uint8Array(writePsd(buildPhotoshop(editor, value), { psb: command === 'export-psb', generateThumbnail: false, invalidateTextLayers: false }));
+    const mode=editor.manifest.workflow?.colorMode??'RGB',bits=editor.manifest.workflow?.bits??8;
+    if(mode!=='RGB'||bits!==8){const profile=editor.manifest.workflow?.profileFile?resourceBytes(editor.assets,editor.manifest.workflow.profileFile):null,composite=await composeChannels(editor,mode,bits,profile);data=patchPhotoshopDepth(data,precisionPhotoshopSources(editor),composite,mode,bits,profile);}
     const result = await window.desktop.exportFile(binaryBase64(data), command === 'export-psb' ? 'psb' : 'psd', editor.name); if (!result.ok) throw new Error(result.error); return true;
   };
 }

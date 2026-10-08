@@ -52,3 +52,26 @@ export function rgbaToRGB16(data, opaque = false) {
   for (let i = 0, j = 0; i < data.length; i += 4, j += 3) for (let c = 0; c < 3; c++) result[j + c] = Math.round((opaque ? data[i + c] * data[i + 3] / 255 + 255 - data[i + 3] : data[i + c]) * 257);
   return result;
 }
+
+export async function convertFloatChannels(samples, from, to, inputProfile, outputProfile, intent = 1) {
+  const counts = { RGB: 3, CMYK: 4, Lab: 3 };
+  if (!(samples instanceof Float32Array) || !counts[from] || !counts[to] || samples.length % counts[from] || ![0, 1, 2, 3].includes(intent)) throw new Error('Invalid floating color conversion.');
+  const engine = await colorEngine(), handles = []; let transform = 0, input = 0, output = 0;
+  const open = async (mode, profile) => {
+    if (mode === 'Lab' && !profile) { const h = engine.cmsCreateLab4Profile(); handles.push(h); return h; }
+    profile ??= await profileBytes('sRGB'); if (validateProfile(profile) !== mode) throw new Error('The ICC profile does not match the document color mode.');
+    const h = engine.cmsOpenProfileFromMem(profile, profile.length); if (!h) throw new Error('Could not read the ICC profile.'); handles.push(h); return h;
+  };
+  try {
+    const a = await open(from, inputProfile), b = await open(to, outputProfile), count = samples.length / counts[from], inputFormat = engine.cmsFormatterForColorspaceOfProfile(a, 4, true), outputFormat = engine.cmsFormatterForColorspaceOfProfile(b, 4, true);
+    transform = engine.cmsCreateTransform(a, inputFormat, b, outputFormat, intent, cms.cmsFLAGS_BLACKPOINTCOMPENSATION);
+    if (!transform) throw new Error('This ICC profile does not support conversion in that direction.');
+    const prepared = samples.slice(); if (from === 'CMYK') for (let i = 0; i < prepared.length; i++) prepared[i] *= 100;
+    const length = count * counts[to] * 4; if (prepared.byteLength + length > 512 * 1024 * 1024) throw new Error('The color conversion exceeds the memory budget.');
+    input = engine._malloc(prepared.byteLength); output = engine._malloc(length); if (!input || !output) throw new Error('Not enough memory for color conversion.');
+    engine.HEAPU8.set(new Uint8Array(prepared.buffer), input); engine._cmsDoTransform(transform, input, output, count);
+    const result = new Float32Array(engine.HEAPU8.slice(output, output + length).buffer);
+    if (to === 'CMYK') for (let i = 0; i < result.length; i++) result[i] /= 100;
+    return result;
+  } finally { if (input) engine._free(input); if (output) engine._free(output); if (transform) engine.cmsDeleteTransform(transform); for (const h of handles) if (h) engine.cmsCloseProfile(h); }
+}

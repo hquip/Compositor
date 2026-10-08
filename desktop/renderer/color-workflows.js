@@ -70,7 +70,7 @@ export function installColorWorkflows(editor, api) {
           baked = structuredClone(snapshot);
           for (const layer of baked.manifest.layers) if (layer.effects && Object.values(layer.effects).some((effect) => effect && effect.enabled !== false)) {
             const isolated = structuredClone(layer); delete isolated.parentID; delete isolated.maskSourceID; isolated.opacity = 1; isolated.blendMode = 'Normal'; isolated.isVisible = true;
-            const image = compose({ ...editor.manifest, layers: [isolated] }, editor.images, editor.masks); layer.imageFile = `${layer.id}.png`; baked.assets[layer.imageFile] = image.toDataURL('image/png').split(',')[1];
+            const image = compose({ ...editor.manifest, layers: [isolated] }, editor.images, editor.masks, 1, editor.assets); layer.imageFile = `${layer.id}.png`; baked.assets[layer.imageFile] = image.toDataURL('image/png').split(',')[1];
             layer.transform = { origin: [0, 0], size: [editor.manifest.width, editor.manifest.height], rotation: 0, flipX: false, flipY: false, sampling: 'High quality' };
             for (const key of ['effects', 'maskFile', 'maskPlacement', 'maskEnabled', 'maskLinked', 'filterSourceFile', 'filterWorkingSpace', 'filters', 'text', 'shape']) delete layer[key];
           }

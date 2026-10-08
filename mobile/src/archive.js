@@ -1,5 +1,6 @@
 import { zipSync, unzipSync, strToU8, strFromU8 } from 'fflate';
 import validation from '../../desktop/lib/validation.cjs';
+import workflows from '../../desktop/lib/workflow-resources.cjs';
 const { validateManifest, inspectAsset, validateSourceSize, MAX_METADATA, layerResources } = validation;
 export const MOBILE_PIXELS = 48000000;
 const MAX_ARCHIVE = 128 * 1024 * 1024;
@@ -23,6 +24,12 @@ function resources(snapshot) {
     if (pixels > MOBILE_PIXELS || bytes > MAX_ARCHIVE) throw new Error('This project exceeds the mobile memory budget.');
     files[`images/${name}`] = asset;
   }
+  for (const resource of workflows.workflowResources(snapshot.manifest)) {
+    if (typeof snapshot.assets?.[resource.file] !== 'string') throw new Error('Missing workflow resource.');
+    const asset = unbase64(snapshot.assets[resource.file]); pixels += workflows.inspectWorkflowResource(asset, resource.kind).pixels; bytes += asset.length;
+    if (pixels > MOBILE_PIXELS || bytes > MAX_ARCHIVE) throw new Error('This project exceeds the mobile memory budget.');
+    files['images/' + resource.file] = asset;
+  }
   return files;
 }
 export function encodeProject(snapshot, name = 'Project') {
@@ -36,7 +43,7 @@ export function decodeProject(bytes) {
     expanded += entry.originalSize; entries++;
     if (!Number.isFinite(expanded) || expanded > MAX_ARCHIVE || entries > 20010) throw new Error('The project archive is too large.');
     if (entry.name.includes('\\') || entry.name.startsWith('/') || entry.name.split('/').some((part) => part === '..' || part === '.') || /\x00/.test(entry.name)) throw new Error('The project archive is invalid.');
-    return /(^|\/)manifest\.json$|\/images\/[0-9a-f-]+(?:(?:\.(?:mask|source)|\.[0-9a-f-]+\.filter-mask)?\.png|\.hdr-source\.tif|\.exr-source\.exr)$/i.test('/' + entry.name);
+    return /(^|\/)manifest\.json$|\/images\/[0-9a-f-]+(?:(?:\.(?:mask|source)|\.[0-9a-f-]+\.filter-mask)?\.png|\.hdr-source\.tif|\.exr-source\.exr|\.resource\.bin)$/i.test('/' + entry.name);
   } });
   const manifests = Object.keys(files).filter((name) => /(^|\/)manifest\.json$/.test(name));
   if (manifests.length !== 1 || files[manifests[0]].length > MAX_METADATA) throw new Error('The project archive is invalid.');
@@ -49,6 +56,9 @@ export function decodeProject(bytes) {
     for (const [name] of layerResources(layer)) if (name) {
       const asset = files[root + 'images/' + name]; if (!asset) throw new Error('A project image is missing or invalid.'); assets[name] = base64(asset);
     }
+  }
+  for (const resource of workflows.workflowResources(manifest)) {
+    const asset = files[root + 'images/' + resource.file]; if (!asset) throw new Error('Missing workflow resource.'); assets[resource.file] = base64(asset);
   }
   const snapshot = { manifest, assets }; resources(snapshot); return snapshot;
 }

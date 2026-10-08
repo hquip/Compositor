@@ -73,7 +73,7 @@ namespace Compositor.Windows
         {
             Require(Json.Text(manifest, "format") == "com.compositor.project", "This is not a Compositor project.");
             var version = Number(manifest, "version", 0);
-            Require(version >= 1 && version <= 16 && version % 1 == 0, "This client supports Compositor project versions 1–16.");
+            Require(version >= 1 && version <= 17 && version % 1 == 0, "This client supports Compositor project versions 1–17.");
             Require(Json.Text(manifest, "colorSpace") == "sRGB" && IsID(Json.Text(manifest, "documentID")), "Invalid document metadata.");
             var width = Number(manifest, "width", 0); var height = Number(manifest, "height", 0);
             Require(width >= 1 && height >= 1 && width <= MaximumSide && height <= MaximumSide && width % 1 == 0 && height % 1 == 0 &&
@@ -81,6 +81,7 @@ namespace Compositor.Windows
             var resolution = Number(manifest, "resolution", 72);
             Require(resolution >= 1 && resolution <= 9600, "Invalid document resolution.");
             var layers = Json.Array(Json.Get(manifest, "layers"));
+            WorkflowResources.List(manifest);
             Require(layers.Length <= 10000, "Too many layers.");
             var byID = new Dictionary<string, Dictionary<string, object>>(StringComparer.OrdinalIgnoreCase);
             foreach (var value in layers)
@@ -223,6 +224,10 @@ namespace Compositor.Windows
                     assets[filename] = Convert.ToBase64String(bytes);
                 }
             }
+            foreach (var resource in WorkflowResources.List(manifest)) {
+                var file = Json.Text(resource, "file"); var bytes = ReadResource(directory, Path.Combine("images", file), AssetBytes);
+                used += WorkflowResources.Inspect(bytes, Json.Text(resource, "kind")); Require(used <= PixelBudget, "This project exceeds the document memory budget."); assets[file] = Convert.ToBase64String(bytes);
+            }
             return new Dictionary<string, object> { ["manifest"] = manifest, ["assets"] = assets };
         }
 
@@ -238,6 +243,10 @@ namespace Compositor.Windows
                 Require(encoded != null && encoded.Length <= ((long)AssetBytes + 2) / 3 * 4, "A project image is missing or too large.");
                 var bytes = Convert.FromBase64String(encoded);
                 used += filename == Json.Text(Json.Map(value), "hdrSourceFile") ? HdrStore.Inspect(bytes, Json.Get(Json.Map(value), "smartObject") as Dictionary<string, object>, Number(manifest, "version", 0) >= 16) : filename == Json.Text(Json.Map(value), "exrSourceFile") ? ExrStore.Inspect(bytes, Json.Map(Json.Get(Json.Map(value), "exrView"))) : InspectPNG(bytes, resource.Value, filename == Json.Text(Json.Map(value), "filterSourceFile"), filename == Json.Text(Json.Map(value), "filterSourceFile") ? Json.Get(Json.Map(value), "smartObject") as Dictionary<string, object> : null); Require(used <= PixelBudget, "This project exceeds the document memory budget."); assets[filename] = bytes;
+            }
+            foreach (var resource in WorkflowResources.List(manifest)) {
+                var file = Json.Text(resource, "file"); var encoded = Json.Text(sources, file); Require(encoded != null && encoded.Length <= ((long)AssetBytes + 2) / 3 * 4, "Missing or oversized workflow resource.");
+                var bytes = Convert.FromBase64String(encoded); used += WorkflowResources.Inspect(bytes, Json.Text(resource, "kind")); Require(used <= PixelBudget, "This project exceeds the document memory budget."); assets[file] = bytes;
             }
             var target = Path.GetFullPath(directory); var parent = Path.GetDirectoryName(target);
             Require(parent != null && Path.GetExtension(target).Equals(".comp", StringComparison.OrdinalIgnoreCase), "Save to a folder ending in .comp.");

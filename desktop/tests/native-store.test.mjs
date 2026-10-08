@@ -27,7 +27,7 @@ test('native reader rejects future formats, unsafe filenames, and folder cycles'
   const directory = path.join(await workspace(t), 'Invalid.comp'), original = project();
   await store.writeProject(directory, original);
   for (const edit of [
-    (m) => { m.version = 17; },
+    (m) => { m.version = 999; },
     (m) => { m.layers[0].imageFile = '../outside.png'; },
     (m) => { m.layers[0].parentID = m.layers[0].id; m.layers[0].isGroup = true; delete m.layers[0].imageFile; },
     (m) => { m.layers[0].maskSourceID = m.layers[0].id; },

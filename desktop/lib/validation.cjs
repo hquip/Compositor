@@ -1,4 +1,5 @@
-const FORMAT_VERSION = 16;
+const FORMAT_VERSION = 17;
+const { workflowResources } = require('./workflow-resources.cjs');
 const { decodeFloatTIFF } = require('./float-tiff.cjs');
 const { inspectEXRContainer } = require('./exr-container.cjs');
 const HDR_SPACES = ['Linear sRGB', 'Linear Rec.2020', 'Linear P3-D65', 'ACEScg', 'ACES2065-1'];
@@ -66,6 +67,7 @@ function validateManifest(manifest) {
   requireCondition(manifest.resolution == null || (Number.isFinite(manifest.resolution) &&
     manifest.resolution >= 1 && manifest.resolution <= 9600), 'Invalid document resolution.');
   requireCondition(Array.isArray(manifest.layers) && manifest.layers.length <= 10000, 'Invalid layer list.');
+  workflowResources(manifest);
   const byID = new Map();
   for (const layer of manifest.layers) {
     requireCondition(layer && UUID.test(layer.id) && !byID.has(layer.id.toUpperCase()), 'Invalid or duplicate layer ID.');

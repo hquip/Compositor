@@ -4,11 +4,11 @@ import UniformTypeIdentifiers
 struct ImageLayer: Identifiable, Equatable {
     static func == (lhs: Self, rhs: Self) -> Bool {
         lhs.id == rhs.id && lhs.name == rhs.name && lhs.isVisible == rhs.isVisible && lhs.transform == rhs.transform
-            && lhs.asset?.image === rhs.asset?.image && lhs.parentID == rhs.parentID && lhs.isGroup == rhs.isGroup && lhs.opacity == rhs.opacity && lhs.blendMode == rhs.blendMode && lhs.mask == rhs.mask && lhs.maskSourceID == rhs.maskSourceID && lhs.adjustment == rhs.adjustment && lhs.shape == rhs.shape && lhs.text == rhs.text && lhs.effects == rhs.effects && lhs.editableFilters == rhs.editableFilters && lhs.vectorPath == rhs.vectorPath && lhs.vectorMask == rhs.vectorMask && lhs.hdrSource == rhs.hdrSource && lhs.smartObject == rhs.smartObject
+            && lhs.asset?.image === rhs.asset?.image && lhs.parentID == rhs.parentID && lhs.isGroup == rhs.isGroup && lhs.opacity == rhs.opacity && lhs.blendMode == rhs.blendMode && lhs.mask == rhs.mask && lhs.maskSourceID == rhs.maskSourceID && lhs.adjustment == rhs.adjustment && lhs.shape == rhs.shape && lhs.text == rhs.text && lhs.effects == rhs.effects && lhs.editableFilters == rhs.editableFilters && lhs.vectorPath == rhs.vectorPath && lhs.vectorMask == rhs.vectorMask && lhs.hdrSource == rhs.hdrSource && lhs.smartObject == rhs.smartObject && lhs.fillOpacity == rhs.fillOpacity && lhs.workflow == rhs.workflow
     }
     let id: UUID
     var asset: ImportedImage? {
-        didSet { if (hdrSource != nil || smartObject != nil), asset?.image !== oldValue?.image { asset = oldValue } }
+        didSet { if (hdrSource != nil || smartObject != nil || workflow?["channelFile"] != nil), asset?.image !== oldValue?.image { asset = oldValue } }
     }
     var transform: LayerTransform
     var origin: CGPoint { transform.origin }
@@ -31,6 +31,8 @@ struct ImageLayer: Identifiable, Equatable {
     var vectorMask: LayerVectorPath?
     var hdrSource: LayerHDRSource?
     var smartObject: StoredSmartObject?
+    var fillOpacity: Double = 1
+    var workflow: [String: WorkflowValue]? = nil
     nonisolated var size: CGSize { transform.size }
 
     init(asset: ImportedImage, origin: CGPoint) {
@@ -47,7 +49,7 @@ struct ImageLayer: Identifiable, Equatable {
         self.name = name
     }
 
-    init(id: UUID, asset: ImportedImage?, name: String, isVisible: Bool, transform: LayerTransform, parentID: UUID? = nil, isGroup: Bool = false, opacity: Double = 1, blendMode: LayerBlendMode = .normal, mask: LayerMask? = nil, maskSourceID: UUID? = nil, adjustment: LayerAdjustment? = nil, shape: LayerShape? = nil, effects: LayerEffects? = nil, text: LayerText? = nil, editableFilters: LayerFilterState? = nil, vectorPath: LayerVectorPath? = nil, vectorMask: LayerVectorPath? = nil, hdrSource: LayerHDRSource? = nil, smartObject: StoredSmartObject? = nil) {
+    init(id: UUID, asset: ImportedImage?, name: String, isVisible: Bool, transform: LayerTransform, parentID: UUID? = nil, isGroup: Bool = false, opacity: Double = 1, blendMode: LayerBlendMode = .normal, mask: LayerMask? = nil, maskSourceID: UUID? = nil, adjustment: LayerAdjustment? = nil, shape: LayerShape? = nil, effects: LayerEffects? = nil, text: LayerText? = nil, editableFilters: LayerFilterState? = nil, vectorPath: LayerVectorPath? = nil, vectorMask: LayerVectorPath? = nil, hdrSource: LayerHDRSource? = nil, smartObject: StoredSmartObject? = nil, fillOpacity: Double = 1, workflow: [String: WorkflowValue]? = nil) {
         self.id = id
         self.asset = asset
         self.name = name
@@ -68,6 +70,8 @@ struct ImageLayer: Identifiable, Equatable {
         self.vectorMask = vectorMask
         self.hdrSource = hdrSource
         self.smartObject = smartObject
+        self.fillOpacity = fillOpacity
+        self.workflow = workflow
     }
 }
 
@@ -78,6 +82,9 @@ struct CanvasDocument: Equatable {
     var resolution: Double = 72
     var hdrView: HDRPreview? = nil
     var hdrWorkingSpace: String? = nil
+    var resources: [WorkflowResource]? = nil
+    var workflow: [String: WorkflowValue]? = nil
+    var workflowSources: [String: Data] = [:]
     var layers: [ImageLayer] = [] // Bottom to top.
     /// User-placed alignment lines. Saved with the project; undo covers them.
     var guides: [CanvasGuide] = []

@@ -223,3 +223,13 @@ dialog h2 { font-size: 20px; letter-spacing: -.4px; margin: 0 0 11px; }
 .path-controls button[aria-pressed=true] { background: #3e536e; border-color: #78a9ff; }
 
 .hdr-display[hidden] { display: none; }
+
+#theme { max-width: 100px; }
+:root[data-theme=light] { color-scheme: light; color: #252529; background: #ededf0; --panel: #f5f5f7; --line: #c4c4ca; --muted: #62626c; --accent: #0869ca; }
+:root[data-theme=light] body { background: #ededf0; color: #252529; }
+:root[data-theme=light] .app-header, :root[data-theme=light] .tool-options, :root[data-theme=light] .editor-menus, :root[data-theme=light] .properties-panel, :root[data-theme=light] .layers-panel, :root[data-theme=light] .tool-rail, :root[data-theme=light] .status-bar, :root[data-theme=light] .project-tabs, :root[data-theme=light] .path-controls, :root[data-theme=light] .inline-type-controls { background: #f5f5f7; color: #252529; border-color: #c4c4ca; }
+:root[data-theme=light] button, :root[data-theme=light] input, :root[data-theme=light] select, :root[data-theme=light] textarea { background: #fff; color: #252529; border-color: #b5b5bf; }
+:root[data-theme=light] button:hover, :root[data-theme=light] button.selected, :root[data-theme=light] .layer-row.selected, :root[data-theme=light] .project-tab.selected { background: #dceaff; color: #172b4b; }
+:root[data-theme=light] dialog, :root[data-theme=light] .editor-menu-dropdown, :root[data-theme=light] .layer-context-menu { background: #f8f8fa; color: #252529; border-color: #b5b5bf; }
+:root[data-theme=light] .settings-tabs button, :root[data-theme=light] .setting-row, :root[data-theme=light] .filter-stack-row, :root[data-theme=light] details { border-color: #c4c4ca; }
+:root[data-theme=light] .dialog-description, :root[data-theme=light] .muted, :root[data-theme=light] #tool-hint { color: #62626c; }

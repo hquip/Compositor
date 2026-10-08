@@ -10,6 +10,15 @@ async function codec(bytes, compress, maximum) {
 function chunk(name, data) { const bytes = new Uint8Array(data.length + 12), view = new DataView(bytes.buffer); view.setUint32(0, data.length); bytes.set(new TextEncoder().encode(name), 4); bytes.set(data, 8); view.setUint32(data.length + 8, crc32(bytes.subarray(4, data.length + 8))); return bytes; }
 const paeth = (a, b, c) => { const p = a + b - c, da = Math.abs(p - a), db = Math.abs(p - b), dc = Math.abs(p - c); return da <= db && da <= dc ? a : db <= dc ? b : c; };
 
+export async function encodePNG8({ width, height, data }) {
+  if (data.length !== width * height * 4 || width < 1 || height < 1 || width * height > 16000000) throw new Error('Invalid PNG pixels.');
+  const header = new Uint8Array(13), view = new DataView(header.buffer); view.setUint32(0, width); view.setUint32(4, height); header[8] = 8; header[9] = 6;
+  const rows = new Uint8Array(height * (width * 4 + 1));
+  for (let y = 0; y < height; y++) rows.set(data.subarray(y * width * 4, (y + 1) * width * 4), y * (width * 4 + 1) + 1);
+  const parts = [new Uint8Array([137,80,78,71,13,10,26,10]), chunk('IHDR', header), chunk('IDAT', await codec(rows, true, rows.length + 65536)), chunk('IEND', new Uint8Array())];
+  const result = new Uint8Array(parts.reduce((sum, part) => sum + part.length, 0)); let at = 0; for (const part of parts) { result.set(part, at); at += part.length; } return result;
+}
+
 export async function encodePNGGray(width, height, values) {
   if (!Number.isInteger(width) || !Number.isInteger(height) || width < 1 || height < 1 || width > 30000 || height > 30000 || width * height > 200000000 || values.length !== width * height) throw new Error('Invalid mask dimensions.');
   const raw = new Uint8Array((width + 1) * height);

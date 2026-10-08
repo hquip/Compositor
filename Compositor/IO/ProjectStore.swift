@@ -12,7 +12,7 @@ extension UTType {
 
 nonisolated struct ProjectManifest: Codable, Sendable {
     /// The format version new saves write.
-    static let current = 16
+    static let current = 17
     /// Every version `load` accepts. The package-header check, the manifest check and the error
     /// message all read this, so they cannot drift apart when `current` is bumped.
     static let supported = 1...ProjectManifest.current
@@ -30,6 +30,8 @@ nonisolated struct ProjectManifest: Codable, Sendable {
     var guides: [CanvasGuide]? = nil
     var hdrView: HDRPreview? = nil
     var hdrWorkingSpace: String? = nil
+    var resources: [WorkflowResource]? = nil
+    var workflow: [String: WorkflowValue]? = nil
 }
 
 nonisolated struct ProjectLayerRecord: Codable, Sendable {
@@ -64,6 +66,8 @@ nonisolated struct ProjectLayerRecord: Codable, Sendable {
     var exrSourceFile: String? = nil
     var exrView: StoredEXRView? = nil
     var smartObject: StoredSmartObject? = nil
+    var fillOpacity: Double? = nil
+    var workflow: [String: WorkflowValue]? = nil
 }
 
 nonisolated struct StoredLayerFilter: Codable, Equatable, Identifiable, Sendable {
@@ -83,6 +87,7 @@ nonisolated struct ProjectSnapshot: @unchecked Sendable {
     var filterMasks: [String: ImportedImage] = [:]
     var hdrSources: [UUID: Data] = [:]
     var exrSources: [UUID: Data] = [:]
+    var workflowSources: [String: Data] = [:]
 }
 
 nonisolated enum ProjectError: LocalizedError {
@@ -138,6 +143,11 @@ actor ProjectStore {
             }
             images[filename] = FileWrapper(regularFileWithContents: data)
           }
+        }
+        for resource in snapshot.manifest.resources ?? [] {
+            guard let data = snapshot.workflowSources[resource.file] else { throw ProjectError.missingImage }
+            pixels += try resource.inspect(data); guard pixels <= DocumentLimits.documentPixelBudget else { throw ProjectError.tooLarge }
+            images[resource.file] = FileWrapper(regularFileWithContents: data)
         }
         let encoder = JSONEncoder()
         encoder.outputFormatting = [.prettyPrinted, .sortedKeys]
@@ -238,13 +248,27 @@ actor ProjectStore {
             if role >= 3 { filterMasks[filename] = asset } else if role == 2 { filterSources[layer.id] = asset } else if isMask { masks[layer.id] = asset } else { images[layer.id] = asset }
           }
         }
-        return ProjectSnapshot(manifest: manifest, images: images, masks: masks, filterSources: filterSources, filterMasks: filterMasks, hdrSources: hdrSources, exrSources: exrSources)
+        var workflowSources: [String: Data] = [:]
+        for resource in manifest.resources ?? [] {
+            let file = url.appendingPathComponent("images").appendingPathComponent(resource.file)
+            try checkFile(file, inside: url, maximumBytes: 512 * 1024 * 1024)
+            let data = try Data(contentsOf: file); pixels += try resource.inspect(data)
+            guard pixels <= DocumentLimits.documentPixelBudget else { throw ProjectError.tooLarge }; workflowSources[resource.file] = data
+        }
+        return ProjectSnapshot(manifest: manifest, images: images, masks: masks, filterSources: filterSources, filterMasks: filterMasks, hdrSources: hdrSources, exrSources: exrSources, workflowSources: workflowSources)
     }
 
     private func validate(_ manifest: ProjectManifest) throws {
         guard manifest.format == "com.compositor.project" else { throw ProjectError.invalid }
         guard ProjectManifest.supported.contains(manifest.version) else { throw ProjectError.version(manifest.version) }
         guard manifest.colorSpace == "sRGB" else { throw ProjectError.invalid }
+        if manifest.resources != nil || manifest.workflow != nil || manifest.layers.contains(where: { $0.workflow != nil || $0.fillOpacity != nil }) {
+            guard manifest.version >= 17, (manifest.resources?.count ?? 0) <= 1024,
+                  manifest.resources?.allSatisfy(\.isValid) ?? true,
+                  Set((manifest.resources ?? []).map { $0.file.uppercased() }).count == (manifest.resources?.count ?? 0),
+                  manifest.workflow?.values.allSatisfy({ $0.isValid() }) ?? true,
+                  manifest.layers.allSatisfy({ ($0.workflow?.values.allSatisfy { $0.isValid() } ?? true) && ($0.fillOpacity.map { $0.isFinite && (0...1).contains($0) } ?? true) }) else { throw ProjectError.invalid }
+        }
         if let preview = manifest.hdrView { guard manifest.version >= 15, preview.isValid else { throw ProjectError.invalid } }
         if manifest.hdrView?.displayMode != nil { guard manifest.version >= 16 else { throw ProjectError.invalid } }
         if let space = manifest.hdrWorkingSpace { guard manifest.version >= 16, HDRColorSpace.names.contains(space) else { throw ProjectError.invalid } }

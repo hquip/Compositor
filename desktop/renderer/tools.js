@@ -184,7 +184,7 @@ export function installTools(editor, api) {
     const x0 = Math.floor(Math.min(0, a.x - rx, z.x - rx) / 64) * 64, y0 = Math.floor(Math.min(0, a.y - ry, z.y - ry) / 64) * 64;
     const needX = Math.max(a.x + rx, z.x + rx), needY = Math.max(a.y + ry, z.y + ry);
     const x1 = needX > w ? Math.ceil(needX / 64) * 64 : w, y1 = needY > h ? Math.ceil(needY / 64) * 64 : h;
-    if (x0 < 0 || y0 < 0 || x1 > w || y1 > h) {
+    if (!g.dodgeBurn && !g.channelPaint && (x0 < 0 || y0 < 0 || x1 > w || y1 > h)) {
       const width = x1 - x0, height = y1 - y0;
       if (width <= 30000 && height <= 30000 && width * height <= 200000000) {
         if (!g.grown) { g.originalSource = g.source; g.originalTransform = structuredClone(t); g.originalMaskPlacement = g.layer.maskPlacement && structuredClone(g.layer.maskPlacement); } g.grown = true;

@@ -2,6 +2,7 @@ const fs = require('node:fs/promises');
 const path = require('node:path');
 const os = require('node:os');
 const { randomUUID } = require('node:crypto');
+const { workflowResources, inspectWorkflowResource } = require('./workflow-resources.cjs');
 
 const { FORMAT_VERSION, MAX_SIDE, MAX_SURFACE_PIXELS, MAX_METADATA, MAX_ASSET, BLEND_MODES, requireCondition, validateManifest, inspectPNG, inspectAsset, validateSourceSize, layerResources } = require('./validation.cjs');
 const PIXEL_BUDGET = Math.min(800000000, Math.max(MAX_SURFACE_PIXELS, Math.floor(os.totalmem() / 16)));
@@ -39,6 +40,11 @@ async function readProject(directory) {
       assets[filename] = bytes.toString('base64');
     }
   }
+  for (const resource of workflowResources(manifest)) {
+    const bytes = await safeRead(directory, path.join('images', resource.file), MAX_ASSET);
+    usedPixels += inspectWorkflowResource(bytes, resource.kind).pixels;
+    requireCondition(usedPixels <= PIXEL_BUDGET, 'This project exceeds the document memory budget.'); assets[resource.file] = bytes.toString('base64');
+  }
   return { manifest, assets };
 }
 
@@ -59,6 +65,11 @@ function decodeSnapshot(snapshot) {
       requireCondition(usedPixels <= PIXEL_BUDGET, 'This project exceeds the document memory budget.');
       assets.set(filename, bytes);
     }
+  }
+  for (const resource of workflowResources(snapshot.manifest)) {
+    const encoded = snapshot.assets?.[resource.file]; requireCondition(typeof encoded === 'string' && encoded.length <= Math.ceil(MAX_ASSET / 3) * 4 && /^[A-Za-z0-9+/]*={0,2}$/.test(encoded), 'Missing or invalid workflow resource.');
+    const bytes = Buffer.from(encoded, 'base64'); usedPixels += inspectWorkflowResource(bytes, resource.kind).pixels;
+    requireCondition(usedPixels <= PIXEL_BUDGET, 'This project exceeds the document memory budget.'); assets.set(resource.file, bytes);
   }
   return { metadata, assets };
 }

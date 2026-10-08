@@ -223,6 +223,15 @@ namespace Compositor.Windows
         {
             switch (channel)
             {
+                case "settings:theme": {
+                    var light = values[0] as string == "light";
+                    BackColor = light ? Color.FromArgb(237, 237, 240) : Color.FromArgb(36, 36, 38);
+                    browser.DefaultBackgroundColor = BackColor;
+                    MainMenuStrip.BackColor = light ? Color.FromArgb(245, 245, 247) : Color.FromArgb(44, 44, 46);
+                    MainMenuStrip.Renderer = new ToolStripProfessionalRenderer(new EditorColors(light));
+                    void Paint(ToolStripItemCollection items) { foreach (ToolStripItem item in items) { item.ForeColor = light ? Color.FromArgb(37, 37, 41) : Color.Gainsboro; if (item is ToolStripMenuItem menu) Paint(menu.DropDownItems); } }
+                    Paint(MainMenuStrip.Items); return null;
+                }
                 case "settings:language":
                     ui.Language = values.Length > 0 && values[0] as string == "zh-CN" ? "zh-CN" : "en";
                     ui.Apply(MainMenuStrip.Items); return null;
@@ -362,7 +371,7 @@ namespace Compositor.Windows
                 }
                 case "file:export": {
                     var encoded = values[0] as string; var format = values[1] as string;
-                    if (!new[] { "psd", "psb", "tiff", "exr", "icc", "zip" }.Contains(format) || encoded == null || encoded.Length > 715827884) throw new InvalidDataException("Invalid export file.");
+                    if (!new[] { "psd", "psb", "tiff", "exr", "icc", "zip", "ora" }.Contains(format) || encoded == null || encoded.Length > 715827884) throw new InvalidDataException("Invalid export file.");
                     var bytes = Convert.FromBase64String(encoded);
                     if (bytes.Length < 4) throw new InvalidDataException("Invalid export file.");
                     if ((format == "psd" || format == "psb") && Encoding.ASCII.GetString(bytes, 0, 4) != "8BPS") throw new InvalidDataException("Invalid Photoshop document.");
@@ -397,8 +406,10 @@ namespace Compositor.Windows
 
     internal sealed class EditorColors : ProfessionalColorTable
     {
-        private static Color Panel => Color.FromArgb(44, 44, 46);
-        private static Color Selected => Color.FromArgb(70, 70, 73);
+        private readonly bool light;
+        internal EditorColors(bool light = false) { this.light = light; }
+        private Color Panel => light ? Color.FromArgb(245, 245, 247) : Color.FromArgb(44, 44, 46);
+        private Color Selected => light ? Color.FromArgb(220, 234, 255) : Color.FromArgb(70, 70, 73);
         public override Color ToolStripDropDownBackground => Panel;
         public override Color ImageMarginGradientBegin => Panel;
         public override Color ImageMarginGradientMiddle => Panel;

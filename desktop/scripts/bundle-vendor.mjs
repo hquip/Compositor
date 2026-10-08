@@ -1,10 +1,16 @@
 import { build } from 'esbuild';
 import { fileURLToPath } from 'node:url';
-import { copyFile, mkdir, readFile } from 'node:fs/promises';
+import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const exrRuntime = JSON.parse(await readFile(root + '/native/exr/runtime.json', 'utf8'));
 await mkdir(root + '/renderer/vendor/openexr', { recursive: true });
+await mkdir(root + '/renderer/vendor/quickjs', { recursive: true });
+await build({ entryPoints: [root + '/vendor/quickjs-entry.js'], outfile: root + '/renderer/vendor/quickjs/quickjs.js', bundle: true, minify: true,
+  format: 'esm', platform: 'browser', target: 'es2022', legalComments: 'eof' });
+await copyFile(root + '/node_modules/@jitl/quickjs-wasmfile-release-sync/dist/emscripten-module.wasm', root + '/renderer/vendor/quickjs/quickjs.wasm');
+await copyFile(root + '/node_modules/quickjs-emscripten/LICENSE', root + '/third-party/QuickJS-emscripten-LICENSE.txt');
+
 await mkdir(root + '/renderer/vendor/webp', { recursive: true });
 await build({ entryPoints: [root + '/vendor/webp-entry.js'], outfile: root + '/renderer/vendor/webp/webp.js', bundle: true, minify: true,
   format: 'esm', platform: 'browser', target: 'es2022', legalComments: 'eof' });

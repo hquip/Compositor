@@ -4,6 +4,7 @@ import { applyEffects } from './effects.js';
 import { affine, inverse, multiply } from './affine.js';
 import { renderVector } from './vector-render.js';
 import { attachHDRAssets } from './hdr-layer.js';
+import { applyLiveWorkflow } from './live-workflows.js';
 const effectCache = new WeakMap();
 const vectorCache = new WeakMap();
 
@@ -26,7 +27,7 @@ export function place(context, image, transform, scale = 1) {
   context.restore();
 }
 
-export function compose(manifest, images, masks, scale = 1) {
+export function compose(manifest, images, masks, scale = 1, assets = {}) {
   const width = Math.max(1, Math.round(manifest.width * scale)), height = Math.max(1, Math.round(manifest.height * scale));
   const output = surface(width, height), context = output.getContext('2d');
   const entries = layerEntries(manifest.layers);
@@ -77,7 +78,7 @@ export function compose(manifest, images, masks, scale = 1) {
     }
     const mask = layer.maskEnabled !== false ? masks.get(layer.id) : null;
     const factor = Math.min(1, scale * Math.max(layer.transform.size[0] / source.width, layer.transform.size[1] / source.height));
-    const effects = layer.effects, key = JSON.stringify([effects, layer.maskPlacement && [layer.maskPlacement, layer.transform], factor, source.compositorRevision ?? 0, mask?.compositorRevision ?? 0]);
+    const effects = layer.effects, key = JSON.stringify([effects, layer.fillOpacity ?? 1, layer.maskPlacement && [layer.maskPlacement, layer.transform], factor, source.compositorRevision ?? 0, mask?.compositorRevision ?? 0]);
     let cached = effectCache.get(source)?.find((entry) => entry.key === key && entry.mask === mask);
     if (!cached) {
       const w = Math.max(1, Math.round(source.width * factor)), h = Math.max(1, Math.round(source.height * factor));
@@ -96,7 +97,7 @@ export function compose(manifest, images, masks, scale = 1) {
       for (const [kind, effect] of Object.entries(effects ?? {})) if (effect && effect.enabled !== false) padding = Math.max(padding, kind === 'shadow' || kind === 'innerShadow' ? (effect.distance ?? 10) + (effect.blur ?? 10) * 1.5 : (effect.size ?? 1) * (kind.includes('Glow') ? 1.5 : 1));
       padding = Math.ceil(padding * factor) + (padding ? 2 : 0);
       if (padding) { const padded = surface(w + padding * 2, h + padding * 2); padded.getContext('2d').drawImage(image, padding, padding); image = padded; }
-      if (effects) image = applyEffects(image, effects, factor);
+      if (effects || layer.fillOpacity != null) image = applyEffects(image, effects, factor, layer.fillOpacity ?? 1);
       cached = { key, mask, image, x: image.width / w, y: image.height / h };
       const list = effectCache.get(source) ?? []; list.unshift(cached); if (list.length > 4) list.pop(); effectCache.set(source, list);
     }
@@ -115,7 +116,7 @@ export function compose(manifest, images, masks, scale = 1) {
   }
   function adjustTarget(target, entry) {
     const { layer } = entry, mode = layer.blendMode ?? 'Normal', ctx = target.getContext('2d');
-    const adjusted = applyAdjustment(target, layer.adjustment, scale), changedContext = adjusted.getContext('2d');
+    const adjusted = ['lut', 'live-filter'].includes(layer.workflow?.type) ? applyLiveWorkflow(target, layer.workflow, assets, scale) : applyAdjustment(target, layer.adjustment, scale), changedContext = adjusted.getContext('2d');
     const original = ctx.getImageData(0, 0, width, height); let changed = changedContext.getImageData(0, 0, width, height);
     if (mode !== 'Normal') {
       const opaque = surface(width, height), a = new ImageData(new Uint8ClampedArray(original.data), width, height), b = new ImageData(new Uint8ClampedArray(changed.data), width, height);
@@ -145,7 +146,7 @@ export function compose(manifest, images, masks, scale = 1) {
       for (let i = 0; i < alpha.length; i++) { alpha[i] = pixels.data[i * 4 + 3]; pixels.data[i * 4 + 3] = 255; } groupContext.putImageData(pixels, 0, 0);
       for (const childEntry of stacks.get(layer.id)) {
         const child = childEntry.layer;
-        if (child.adjustment) adjustTarget(group, childEntry);
+        if (child.adjustment || ['lut', 'live-filter'].includes(child.workflow?.type)) adjustTarget(group, childEntry);
         else if (images.has(child.id)) {
           const own = surface(width, height), rendered = ownImage(child); place(own.getContext('2d'), rendered.image, rendered.transform, scale);
           blendInto(group, own, child.blendMode ?? 'Normal', childEntry.opacity);
@@ -155,12 +156,12 @@ export function compose(manifest, images, masks, scale = 1) {
       for (const parent of ancestorMasks) { groupContext.globalCompositeOperation = 'destination-in'; groupContext.drawImage(placedMask(parent), 0, 0); }
       blendInto(output, group, mode); continue;
     }
-    if (layer.adjustment) {
+    if (layer.adjustment || ['lut', 'live-filter'].includes(layer.workflow?.type)) {
       if (!layer.maskSourceID) adjustTarget(output, entry); continue;
     }
     if (!images.has(layer.id)) continue;
     if (!layer.effects && !layer.maskFile && !layer.maskSourceID && !ancestorMasks.length && CANVAS_BLEND[mode]) {
-      context.globalAlpha = entry.opacity;
+      context.globalAlpha = entry.opacity * (layer.fillOpacity ?? 1);
       context.globalCompositeOperation = CANVAS_BLEND[mode];
       place(context, images.get(layer.id), layer.transform, scale);
       continue;

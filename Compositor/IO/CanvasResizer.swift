@@ -15,7 +15,7 @@ actor CanvasResizer {
         guard options.width != old.width || options.height != old.height || offset != .zero else { return snapshot }
         var manifest = ProjectManifest(resolution: old.resolution, documentID: old.documentID,
             width: options.width, height: options.height, activeLayerID: old.activeLayerID, layers: [],
-            guides: old.guides?.map { $0.offset(x: offset.x, y: offset.y) }, hdrView: old.hdrView, hdrWorkingSpace: old.hdrWorkingSpace)
+            guides: old.guides?.map { $0.offset(x: offset.x, y: offset.y) }, hdrView: old.hdrView, hdrWorkingSpace: old.hdrWorkingSpace, resources: old.resources, workflow: old.workflow)
         for layer in old.layers {
             var transform = layer.transform
             transform.origin.x += offset.x
@@ -32,7 +32,7 @@ actor CanvasResizer {
                 filterSourceFile: layer.filterSourceFile, filters: layer.filters, filterWorkingSpace: layer.filterWorkingSpace, vectorPath: layer.vectorPath, vectorMask: layer.vectorMask, hdrSourceFile: layer.hdrSourceFile,
                 exrSourceFile: layer.exrSourceFile, exrView: layer.exrView, smartObject: layer.smartObject.map { object in
                     var moved = object; moved.baseTransform.origin.x += offset.x; moved.baseTransform.origin.y += offset.y; return moved
-                }))
+                }, fillOpacity: layer.fillOpacity, workflow: layer.workflow))
         }
         var images = snapshot.images
         // A colored extension is separate bottom-layer content. The old canvas
@@ -72,6 +72,6 @@ actor CanvasResizer {
                 transform: LayerTransform(origin: .zero, size: CGSize(width: options.width, height: options.height)),
                 imageFile: "\(id.uuidString).png"), at: 0)
         }
-        return ProjectSnapshot(manifest: manifest, images: images, masks: snapshot.masks, filterSources: snapshot.filterSources, filterMasks: snapshot.filterMasks, hdrSources: snapshot.hdrSources, exrSources: snapshot.exrSources)
+        return ProjectSnapshot(manifest: manifest, images: images, masks: snapshot.masks, filterSources: snapshot.filterSources, filterMasks: snapshot.filterMasks, hdrSources: snapshot.hdrSources, exrSources: snapshot.exrSources, workflowSources: snapshot.workflowSources)
     }
 }

@@ -1,5 +1,6 @@
 import './bridge.js';
 import { installLocalization } from './localization.js';
+import { installTheme } from './theme.js';
 import { Editor } from './editor.js';
 import { BLEND_MODES, canvasSize, layerEntries } from './core.js';
 import { surface } from './compose.js';
@@ -318,6 +319,7 @@ installAdvanced(editor, { runCommand, synchronize, showError, askInput, mayRepla
 installIcons();
 synchronize();
 installLocalization();
+installTheme();
 await installRecovery(editor, { setTool, showError });
 document.body.inert = false;
 document.documentElement.dataset.editorReady = 'true';

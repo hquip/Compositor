@@ -19,6 +19,7 @@ import { openEXRCases } from './openexr-cases.mjs';
 import { advancedEXRCases } from './exr-advanced-cases.mjs';
 import { professionalCases } from './professional-cases.mjs';
 import { upstreamEnhancementCases } from './upstream-enhancement-cases.mjs';
+import { fullWorkflowCases } from './full-workflow-cases.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 let application, browser, page, directory, errors;
@@ -31,6 +32,7 @@ parityCases(test, expect, () => page);
 enhancementCases(test, expect, () => page);
 professionalCases(test, expect, () => page);
 upstreamEnhancementCases(test, expect, () => page);
+fullWorkflowCases(test, expect, () => page);
 
 async function freePort() {
   const server = net.createServer();

@@ -17,7 +17,7 @@ struct ProtectedSourceTests {
         let snapshot = try #require(session.projectSnapshot()), url = FileManager.default.temporaryDirectory.appendingPathComponent("Deep-\(UUID()).comp")
         defer { try? FileManager.default.removeItem(at: url) }
         try await ProjectStore.shared.save(snapshot, to: url); let loaded = try await ProjectStore.shared.load(from: url)
-        #expect(loaded.manifest.version == 16); #expect(loaded.manifest.hdrWorkingSpace == "ACEScg"); #expect(loaded.exrSources[layer.id] == deep); #expect(loaded.hdrSources[layer.id] == hdr)
+        #expect(loaded.manifest.version == ProjectManifest.current); #expect(loaded.manifest.hdrWorkingSpace == "ACEScg"); #expect(loaded.exrSources[layer.id] == deep); #expect(loaded.hdrSources[layer.id] == hdr)
         session.installProject(loaded, from: url); session.duplicateLayers([layer.id]); #expect(session.projectSnapshot()?.exrSources.count == 2)
     }
     @Test func rawHDRAndSmartIdentitySurviveSavingAndDuplication() async throws {

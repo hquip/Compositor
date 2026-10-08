@@ -2,6 +2,9 @@
 
 The Windows application remains under the repository MIT license. Its third-party components retain their own licenses.
 
+- **QuickJS-emscripten 0.32.0** — MIT, Jake Teton-Landis and QuickJS contributors. Used as a separate WebAssembly interpreter for image plugins, with memory/stack/CPU limits and no host IO bindings. Source: <https://github.com/justjake/quickjs-emscripten>. License in `QuickJS-emscripten-LICENSE.txt`.
+- **Tauri 2** and dialog/clipboard plugins — MIT/Apache-2.0, Tauri contributors. The compatible Linux/macOS host uses the operating system WebView. Exact Rust dependencies are recorded in `src-tauri/Cargo.lock`; JavaScript dependencies in `package-lock.json`. Source: <https://github.com/tauri-apps/tauri>.
+
 - **jSquash WebP 1.5.0** — Apache-2.0 JavaScript wrapper and libwebp WebAssembly codec derived from Squoosh; source: <https://github.com/jamsinclair/jSquash/tree/main/packages/webp>. Wrapper license in `jSquash-WebP-LICENSE.txt`; the codec's BSD license is in `libwebp-LICENSE.txt`.
 
 - **OpenEXR 3.4.16** — BSD-3-Clause, Academy Software Foundation contributors; source: <https://github.com/AcademySoftwareFoundation/openexr/tree/v3.4.16>. The WebAssembly module is built from the official library with Compositor's memory-stream wrapper. License in `OpenEXR-LICENSE.txt`; source pin, toolchain and binary hashes in `desktop/native/exr/runtime.json`; rebuild with `desktop/scripts/build-exr.ps1`.

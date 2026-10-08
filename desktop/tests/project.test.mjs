@@ -59,7 +59,7 @@ test('saving refuses an unrelated directory and does not remove its files', asyn
 
 test('rejects future formats, invalid dimensions, unsafe asset paths, and duplicate IDs', () => {
   const original = project().manifest;
-  for (const edit of [(m) => { m.version = 17; }, (m) => { m.width = 30001; }, (m) => { m.width = 30000; m.height = 30000; },
+  for (const edit of [(m) => { m.version = 999; }, (m) => { m.width = 30001; }, (m) => { m.width = 30000; m.height = 30000; },
     (m) => { m.layers[0].imageFile = '../secret.png'; }, (m) => { m.layers.push(structuredClone(m.layers[0])); },
     (m) => { m.layers[0].transform.rotation = Infinity; }, (m) => { m.layers[0].opacity = -1; }]) {
     const manifest = structuredClone(original); edit(manifest); assert.throws(() => store.validateManifest(manifest));

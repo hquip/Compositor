@@ -116,7 +116,8 @@ export class Editor {
     if (wasEmpty) this.fit();
     this.update();
   }
-  storePixels(layer, canvas, { filterCache = false, vectorCache = false } = {}) {
+  storePixels(layer, canvas, { filterCache = false, vectorCache = false, channelCache = false } = {}) {
+    if (layer.workflow?.channelFile && !channelCache) throw new Error('Edit this layer through Channels to preserve its authoritative color samples.');
     if (!filterCache && (layer.smartObject || layer.hdrSourceFile)) throw new Error('Edit the embedded content or rasterize this protected layer before painting its pixels.');
     if (!vectorCache) delete layer.vectorPath;
     if (!filterCache && layer.filterSourceFile && atob(this.assets[layer.filterSourceFile].slice(0, 44)).charCodeAt(24) === 16) throw new Error('Rasterize this high-precision layer before changing its pixels, or paint on a new layer.');
@@ -230,7 +231,7 @@ export class Editor {
     const scale = full ? 1 : Math.min(1, 4096 / Math.max(this.manifest.width, this.manifest.height), Math.sqrt(12000000 / (this.manifest.width * this.manifest.height)));
     const stroke = this.gesture && ['brush', 'retouch'].includes(this.gesture.kind) && !this.editMask ? this.gesture.layer?.id : null;
     const manifest = stroke ? { ...this.manifest, layers: this.manifest.layers.map((layer) => layer.id === stroke ? { ...layer, vectorPath: undefined } : layer) } : this.manifest;
-    const render = (document, images, masks) => document.layers.some((layer) => layer.hdrSourceFile) ? composeHDRCanvas(document, images, masks, full ? 1 : Math.min(scale, 768 / Math.max(document.width, document.height))) : compose(document, images, masks, scale);
+    const render = (document, images, masks) => document.layers.some((layer) => layer.hdrSourceFile) ? composeHDRCanvas(document, images, masks, full ? 1 : Math.min(scale, 768 / Math.max(document.width, document.height))) : compose(document, images, masks, scale, this.assets);
     if (!this.rasterPreview) return render(manifest, this.images, this.masks);
     const edit = this.rasterPreview, images = new Map(this.images), masks = new Map(this.masks);
     (edit.isMask ? masks : images).set(edit.layerID, edit.image);

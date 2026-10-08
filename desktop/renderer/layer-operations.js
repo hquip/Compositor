@@ -4,6 +4,7 @@ import { surface, copySurface } from './raster.js';
 import { storeMask } from './masks.js';
 import { following } from './affine.js';
 import { alphaBounds } from './raster-space.js';
+import { retainResources } from './workflow-assets.js';
 import { filterMaskName } from './filter-mix.js';
 
 export function descendants(editor, ids) {
@@ -54,6 +55,7 @@ export function ungroupLayers(editor) {
   });
 }
 export function cloneLayers(editor, ids = selected(editor), source = editor) {
+  if (source !== editor) retainResources(editor, source);
   const all = descendants(source, ids), original = source.manifest.layers.filter((layer) => all.has(layer.id));
   const mapping = new Map(original.map((layer) => [layer.id, crypto.randomUUID().toUpperCase()]));
   const copies = original.map((item) => {
@@ -83,7 +85,7 @@ export function mergeLayers(editor, down = false) {
   editor.mutate('Merge Layers', () => {
     // Mac merges detach external parent and clipping references before rendering the subset.
     const layers = all.filter((layer) => ids.has(layer.id)).map((item) => { const layer = structuredClone(item); if (!ids.has(layer.parentID)) delete layer.parentID; if (!ids.has(layer.maskSourceID)) delete layer.maskSourceID; return layer; });
-    const output = compose({ ...editor.manifest, layers }, editor.images, editor.masks);
+    const output = compose({ ...editor.manifest, layers }, editor.images, editor.masks, 1, editor.assets);
     const bounds = alphaBounds(output) ?? { x: 0, y: 0, width: 1, height: 1 }, trimmed = surface(bounds.width, bounds.height); trimmed.getContext('2d').drawImage(output, -bounds.x, -bounds.y);
     const layer = createLayer(name, trimmed.width, trimmed.height); layer.transform.origin = [bounds.x, bounds.y]; layer.parentID = anchor.parentID;
     while (ids.has(layer.parentID)) layer.parentID = all.find((item) => item.id === layer.parentID)?.parentID;

@@ -34,6 +34,12 @@ import { installPathEditor } from './path-editor.js';
 import { installHDR } from './hdr-workflows.js';
 import { installSmartObjects } from './smart-objects.js';
 import { selectionStrokeDialog } from './selection-stroke.js';
+import { installDodgeBurn } from './dodge-burn.js';
+import { installProfessionalWorkflows } from './professional-workflows.js';
+import { installChannelWorkflows } from './channel-workflows.js';
+import { installLayoutWorkflows } from './layout-workflows.js';
+import { installInterchangeWorkflows } from './interchange-workflows.js';
+import { installExtensionWorkflows } from './extension-workflows.js';
 
 export function installAdvanced(editor, api) {
   const menu = document.createElement('div'); menu.className = 'editor-menus';
@@ -53,6 +59,14 @@ export function installAdvanced(editor, api) {
   menus.Image.push(['Export PSD…', 'export-psd'], ['Export PSB…', 'export-psb']);
   menus.Image.push(['Export WebP…', 'export-webp']);
   menus.Select.push(['Stroke selection…', 'stroke-selection']);
+  menus.Layer.push(['Layer Fill…', 'layer-fill'], ['Edit live layer…', 'edit-live-layer']);
+  menus.Filters.push(['Import LUT…', 'import-lut'], ['Save adjustment preset…', 'save-adjustment-preset'], ['Apply adjustment preset…', 'apply-adjustment-preset']);
+  menus.Live = [...ADJUSTMENT_KINDS, 'Transform'].map((kind) => [kind + '…', 'live-filter:' + kind]);
+  menus.Image.push(['Document color mode…', 'document-color-mode']); menus.Layer.push(['Channels…', 'channels']);
+  menus.Image.push(['Perspective crop…', 'perspective-crop'], ['Collage…', 'collage']);
+  menus.Image.push(['Import OpenRaster…', 'import-ora'], ['Export OpenRaster…', 'export-ora']);
+  menus.Image.push(['Export original Photoshop…', 'export-photoshop-original']);
+  menus.Extensions=[['Install image plugin…','install-image-plugin'],['Run image plugin…','run-image-plugin'],['Export to external filter…','external-filter-export'],['Import external filter result…','external-filter-import']];
   menus.Image.push(['Import high-precision image…', 'import-precision'], ['Color management and TIFF export…', 'color-export'], ['Soft proof…', 'soft-proof'], ['Load ICC profile…', 'load-icc']); menus.Layer.push(['Rasterize editable filters…', 'rasterize-filters']);
   menus.View.push(['Pen and touch…', 'pen-settings']);
   menus.Layer.push(['Substitute missing fonts…', 'substitute-fonts']);
@@ -76,6 +90,7 @@ export function installAdvanced(editor, api) {
   editor.select = (id, additive = false) => { if (!additive) editor.selectedIDs = new Set([id]); else { if (editor.selectedIDs.has(id)) editor.selectedIDs.delete(id); else editor.selectedIDs.add(id); } editor.editMask = false; select(id); };
   editor.duplicate = () => duplicateLayers(editor);
   installTools(editor, api);
+  installDodgeBurn(editor, api);
   installTransforms(editor, api);
   editor.advancedCommand = async (command) => {
     if (!editor.manifest) return false;
@@ -204,5 +219,10 @@ export function installAdvanced(editor, api) {
   installPathEditor(editor, api);
   installHDR(editor, api);
   installSmartObjects(editor, api);
+  installProfessionalWorkflows(editor, api);
+  installChannelWorkflows(editor, api);
+  installLayoutWorkflows(editor, api);
+  installInterchangeWorkflows(editor, api);
+  installExtensionWorkflows(editor, api);
   installShortcuts(editor, api);
 }

@@ -2,6 +2,7 @@ import SwiftUI
 import UniformTypeIdentifiers
 
 struct ContentView: View {
+    @AppStorage("appearance") private var appearance = "Dark"
     /// The Layers panel's width, remembered across launches.
     @AppStorage("layersPanelWidth") private var layersPanelWidth = 252.0
     @Bindable var session: EditorSession
@@ -155,7 +156,7 @@ struct ContentView: View {
             }
         }
         .onAppear { applicationDelegate?.showEditor = { openWindow(id: "editor") } }
-        .preferredColorScheme(.dark)
+        .preferredColorScheme(appearance == "System" ? nil : appearance == "Light" ? .light : .dark)
         .navigationTitle(session.projectURL?.deletingPathExtension().lastPathComponent ?? "Untitled")
         .toolbar {
             ToolbarItem(placement: .navigation) {

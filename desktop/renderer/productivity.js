@@ -26,7 +26,7 @@ export async function batchFiles(states, options, progress = () => {}, signal) {
       data = (await colorJob({ snapshot: { manifest, assets: state.assets }, profile: await profileBytes('sRGB'), intent: 1, blackPoint: true, bits: 16, preview: false, workingSpace: 'sRGB' }, signal)).bytes; extension = 'tiff';
     } else if (options.format === 'PSD') {
       if (factor !== 1) throw new Error('Layered PSD batch export uses original document dimensions.');
-      const editor = { ...state, pixelBudget: 800000000, composite: () => compose(state.manifest, state.images, state.masks) }; data = new Uint8Array(writePsd(buildPhotoshop(editor))); extension = 'psd';
+      const editor = { ...state, pixelBudget: 800000000, composite: () => compose(state.manifest, state.images, state.masks, 1, state.assets) }; data = new Uint8Array(writePsd(buildPhotoshop(editor))); extension = 'psd';
     } else {
       const image = compose(state.manifest, state.images, state.masks, factor), canvas = options.format === 'JPEG' ? surface(width, height) : image;
       if (options.format === 'JPEG') { const ctx = canvas.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, width, height); ctx.drawImage(image, 0, 0); }

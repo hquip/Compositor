@@ -8,6 +8,7 @@ for (const name of ['renderer/pixels.wasm', 'renderer/vendor/psd.js', 'renderer/
   'renderer/profiles/sRGB-v2-magic.icc', 'renderer/profiles/AdobeCompat-v2.icc', 'renderer/profiles/DisplayP3-v4.icc', 'renderer/profiles/ProPhoto-v4.icc',
   'renderer/vendor/tiff.js', 'renderer/vendor/archive.js', 'renderer/vendor/float-tiff.js', 'renderer/openexr.js', 'renderer/hdr-color.js', 'renderer/hdr-io.js', 'renderer/hdr-io-worker.js', 'third-party/UTIF-LICENSE.txt', 'third-party/fflate-LICENSE.txt',
   'renderer/vendor/webp/webp.js', 'renderer/vendor/webp/webp_enc.wasm', 'renderer/vendor/webp/webp_enc_simd.wasm', 'third-party/jSquash-WebP-LICENSE.txt', 'third-party/libwebp-LICENSE.txt',
+  'renderer/vendor/quickjs/quickjs.js', 'renderer/vendor/quickjs/quickjs.wasm', 'third-party/QuickJS-emscripten-LICENSE.txt',
   'renderer/vendor/libraw/index.js', 'renderer/vendor/libraw/worker.js', 'renderer/vendor/libraw/libraw.js', 'renderer/vendor/libraw/libraw.wasm',
   'renderer/vendor/ort/ort.wasm.min.mjs', 'renderer/vendor/ort/ort-wasm-simd-threaded.mjs', 'renderer/vendor/ort/ort-wasm-simd-threaded.wasm',
   'third-party/NOTICES.md', 'third-party/ag-psd-LICENSE.txt', 'third-party/pako-LICENSE.txt', 'third-party/libheif-LICENSE.txt',

@@ -31,6 +31,7 @@ if (webview) {
     pasteImage: () => invoke('clipboard:read'),
     limits: () => invoke('document:limits'),
     setLanguage: (language) => send('settings:language', language),
+    setTheme: (theme) => send('settings:theme', theme),
     closeProject: (session) => send('project:close', session),
     setDocumentState: (state) => { if (state.sessionID) currentSession = state.sessionID; send('document:state', { ...state, sessionID: state.sessionID ?? currentSession }); },
     readyToClose: () => send('window:close'),

@@ -19,10 +19,15 @@
   },
   "devDependencies": {
     "@playwright/test": "1.63.0",
+    "@tauri-apps/cli": "2.12.1",
     "esbuild": "0.28.2"
   },
   "dependencies": {
+    "@jitl/quickjs-wasmfile-release-sync": "0.32.0",
     "@jsquash/webp": "1.5.0",
+    "@tauri-apps/api": "2.12.1",
+    "@tauri-apps/plugin-clipboard-manager": "2.4.1",
+    "@tauri-apps/plugin-dialog": "2.8.1",
     "ag-psd": "31.0.2",
     "bidi-js": "1.1.0",
     "fflate": "0.8.3",
@@ -31,6 +36,7 @@
     "libraw-wasm": "1.6.0",
     "linebreak": "1.1.0",
     "onnxruntime-web": "1.30.0",
+    "quickjs-emscripten": "0.32.0",
     "utif": "3.1.0"
   }
 }

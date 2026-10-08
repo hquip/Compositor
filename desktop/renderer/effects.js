@@ -23,8 +23,8 @@ function tint(mask, effect) {
   const canvas = copySurface(mask), context = canvas.getContext('2d'); context.globalCompositeOperation = 'source-in'; context.fillStyle = colorCSS(effect);
   context.globalAlpha = effect.opacity ?? 1; context.fillRect(0, 0, canvas.width, canvas.height); return canvas;
 }
-export function applyEffects(source, effects, scale = 1) {
-  if (!effects || !Object.values(effects).some((effect) => effect && effect.enabled !== false)) return source;
+export function applyEffects(source, effects, scale = 1, fill = 1) {
+  if ((!effects || !Object.values(effects).some((effect) => effect && effect.enabled !== false)) && fill === 1) return source;
   const { width, height } = source, base = copySurface(source), context = base.getContext('2d');
   const pixels = context.getImageData(0, 0, width, height), alpha = new Uint8ClampedArray(width * height);
   for (let i = 0; i < alpha.length; i++) alpha[i] = pixels.data[i * 4 + 3];
@@ -45,7 +45,7 @@ export function applyEffects(source, effects, scale = 1) {
   }
   if (on('outerGlow')) back.drawImage(edge(effects.outerGlow, false, true), 0, 0);
   if (on('stroke') && !effects.stroke.inside) back.drawImage(edge(effects.stroke, false, false), 0, 0);
-  back.drawImage(source, 0, 0);
+  back.globalAlpha = fill; back.drawImage(source, 0, 0); back.globalAlpha = 1;
   if (on('colorOverlay')) back.drawImage(tint(mask, effects.colorOverlay), 0, 0);
   if (on('innerGlow')) back.drawImage(edge(effects.innerGlow, true, true), 0, 0);
   if (on('innerShadow')) {

@@ -3,7 +3,7 @@ import Foundation
 extension ProjectSnapshot {
     @MainActor func makeCanvasDocument() -> CanvasDocument {
         let m = manifest
-        return CanvasDocument(id: m.documentID, width: m.width, height: m.height,
+        var document = CanvasDocument(id: m.documentID, width: m.width, height: m.height,
             layers: m.layers.map {
                 ImageLayer(id: $0.id, asset: images[$0.id], name: $0.name,
                     isVisible: $0.isVisible, transform: $0.transform, parentID: $0.parentID, isGroup: $0.isGroup == true,
@@ -13,8 +13,10 @@ extension ProjectSnapshot {
                     text: LayerText.loaded($0.text, image: images[$0.id]?.image), editableFilters: filterState(for: $0),
                     vectorPath: LayerVectorPath.loaded($0.vectorPath, image: images[$0.id]?.image),
                     vectorMask: LayerVectorPath.loaded($0.vectorMask, image: masks[$0.id]?.image),
-                    hdrSource: hdrState(for: $0), smartObject: $0.smartObject)
+                    hdrSource: hdrState(for: $0), smartObject: $0.smartObject, fillOpacity: $0.fillOpacity ?? 1, workflow: $0.workflow)
             }, resolution: m.resolution ?? 72, guides: m.guides ?? [], hdrView: m.hdrView, hdrWorkingSpace: m.hdrWorkingSpace)
+        document.resources = m.resources; document.workflow = m.workflow; document.workflowSources = workflowSources
+        return document
     }
 }
 
@@ -39,11 +41,11 @@ extension EditorSession {
             }
             return ProjectLayerRecord(id: layer.id, name: layer.name, isVisible: layer.isVisible,
                 transform: layer.transform, imageFile: layer.asset == nil ? nil : "\(layer.id.uuidString).png", parentID: layer.parentID, isGroup: layer.isGroup, opacity: layer.opacity, blendMode: layer.blendMode, maskFile: layer.mask == nil ? nil : "\(layer.id.uuidString).mask.png", maskEnabled: layer.mask?.isEnabled, maskSourceID: layer.maskSourceID, adjustment: layer.adjustment, maskPlacement: layer.mask?.placement, maskLinked: layer.mask?.isLinked, shape: layer.liveShape?.style, effects: layer.effects, text: layer.liveText?.style,
-                filterSourceFile: layer.liveFilters == nil ? nil : "\(layer.id.uuidString).source.png", filters: entries, filterWorkingSpace: layer.liveFilters?.workingSpace, vectorPath: layer.liveVectorPath?.style, vectorMask: layer.liveVectorMask?.style, hdrSourceFile: layer.hdrSource == nil ? nil : "\(layer.id.uuidString).hdr-source.tif", exrSourceFile: layer.hdrSource?.exrData == nil ? nil : "\(layer.id.uuidString).exr-source.exr", exrView: layer.hdrSource?.exrView, smartObject: layer.smartObject)
+                filterSourceFile: layer.liveFilters == nil ? nil : "\(layer.id.uuidString).source.png", filters: entries, filterWorkingSpace: layer.liveFilters?.workingSpace, vectorPath: layer.liveVectorPath?.style, vectorMask: layer.liveVectorMask?.style, hdrSourceFile: layer.hdrSource == nil ? nil : "\(layer.id.uuidString).hdr-source.tif", exrSourceFile: layer.hdrSource?.exrData == nil ? nil : "\(layer.id.uuidString).exr-source.exr", exrView: layer.hdrSource?.exrView, smartObject: layer.smartObject, fillOpacity: layer.fillOpacity == 1 ? nil : layer.fillOpacity, workflow: layer.workflow)
         }
         return ProjectSnapshot(manifest: ProjectManifest(resolution: document.resolution, documentID: document.id, width: document.width,
             height: document.height, activeLayerID: activeLayerID, layers: layers,
-            guides: document.guides.isEmpty ? nil : document.guides, hdrView: document.hdrView, hdrWorkingSpace: document.hdrWorkingSpace), images: images, masks: masks, filterSources: filterSources, filterMasks: filterMasks, hdrSources: hdrSources, exrSources: exrSources)
+            guides: document.guides.isEmpty ? nil : document.guides, hdrView: document.hdrView, hdrWorkingSpace: document.hdrWorkingSpace, resources: document.resources, workflow: document.workflow), images: images, masks: masks, filterSources: filterSources, filterMasks: filterMasks, hdrSources: hdrSources, exrSources: exrSources, workflowSources: document.workflowSources)
     }
 
     /// Called only after the entire package has successfully validated and loaded.

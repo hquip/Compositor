@@ -3,6 +3,7 @@ import Sparkle
 
 @main
 struct CompositorApp: App {
+    @AppStorage("appearance") private var appearance = "Dark"
     @NSApplicationDelegateAdaptor(CompositorApplicationDelegate.self) private var applicationDelegate
     private var session: EditorSession { applicationDelegate.session }
     var body: some Scene {
@@ -100,6 +101,11 @@ struct CompositorApp: App {
                         Button("Check for Updates…") { applicationDelegate.updater.checkForUpdates(nil) }
                     }
                     CommandGroup(after: .toolbar) {
+                        Picker("Appearance", selection: $appearance) {
+                            Text("System").tag("System")
+                            Text("Light").tag("Light")
+                            Text("Dark").tag("Dark")
+                        }
                         // With a dialog's preview open (Export JPEG), these zoom that preview rather than the canvas.
                         Button("Fit Canvas") {
                             if let preview = session.previewZoom { preview(.fit) } else { session.fit() }

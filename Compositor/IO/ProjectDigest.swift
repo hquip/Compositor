@@ -26,6 +26,7 @@ nonisolated struct ProjectDigest: Equatable, Sendable {
             hasher.update(data: Data(name.utf8))
             let count = UInt64(values.fileSize ?? 0)
             withUnsafeBytes(of: count) { hasher.update(bufferPointer: $0) }
+            if name.hasSuffix(".resource.bin") { hasher.update(data: try Data(contentsOf: images.appendingPathComponent(name))) }
         }
         return ProjectDigest(value: Data(hasher.finalize()))
     }
