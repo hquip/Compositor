@@ -1,5 +1,6 @@
 import AppKit
 import Testing
+import UniformTypeIdentifiers
 @testable import Compositor
 
 @MainActor struct EditingMetadataTests {
@@ -88,11 +89,13 @@ import Testing
 
     @Test func trimAndFloatingSelectionPreserveLayerEffects() async throws {
         let session = try session(), original = try #require(session.document)
-        let trimmed = try #require(try await ImageTrim.trim(try #require(session.projectSnapshot()), options: TrimOptions()))
+        let snapshot = try #require(session.projectSnapshot())
+        let trimmedResult = try await ImageTrim.trim(snapshot, options: TrimOptions())
+        let trimmed = try #require(trimmedResult)
         session.applyDocumentSize(trimmed, actionName: "Trim")
         try expectEditable(session, matching: original)
         session.undo(); #expect(session.document == original)
-        session.selection = DocumentSelection(path: CGPath(rect: CGRect(x: 4, y: 4, width: 4, height: 4), transform: nil))
+        session.document?.selection = DocumentSelection(path: CGPath(rect: CGRect(x: 4, y: 4, width: 4, height: 4), transform: nil))
         session.beginTransform()
         var draft = try #require(session.transformEdit?.draft)
         draft.origin.x += 8
