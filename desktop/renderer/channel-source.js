@@ -21,5 +21,5 @@ export function decodeChannelSource(bytes) {
 }
 export function channelValue(source, pixel, channel, value) {
   const at = pixel * source.channels + channel; if (channel < 0 || channel >= source.channels || !Number.isFinite(value)) throw new Error('Invalid channel value.');
-  source.data[at] = channel === source.channels - 1 || source.mode !== 'Lab' ? Math.max(0, Math.min(1, value)) : channel === 0 ? Math.max(0, Math.min(100, value)) : Math.max(-128, Math.min(127, value));
+  source.data[at] = channel === source.channels - 1 ? Math.max(0, Math.min(1, value)) : source.mode === 'Lab' ? channel === 0 ? Math.max(0, Math.min(100, value)) : Math.max(-128, Math.min(127, value)) : source.mode === 'RGB' && source.bits === 32 ? Math.max(-1000000, Math.min(1000000, value)) : Math.max(0, Math.min(1, value));
 }

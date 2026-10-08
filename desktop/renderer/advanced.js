@@ -62,7 +62,7 @@ export function installAdvanced(editor, api) {
   menus.Select.push(['Stroke selection…', 'stroke-selection']);
   menus.Layer.push(['Layer Fill…', 'layer-fill'], ['Edit live layer…', 'edit-live-layer']);
   menus.Filters.push(['Import LUT…', 'import-lut'], ['Save adjustment preset…', 'save-adjustment-preset'], ['Apply adjustment preset…', 'apply-adjustment-preset']);
-  menus.Live = [...ADJUSTMENT_KINDS, 'Transform'].map((kind) => [kind + '…', 'live-filter:' + kind]);
+  menus.Live = [...ADJUSTMENT_KINDS, ...FINISHING, 'Camera Raw', 'Transform'].map((kind) => [kind + '…', 'live-filter:' + kind]);
   menus.Image.push(['Document color mode…', 'document-color-mode']); menus.Layer.push(['Channels…', 'channels']);
   menus.Image.push(['Perspective crop…', 'perspective-crop'], ['Collage…', 'collage']);
   menus.Image.push(['Import OpenRaster…', 'import-ora'], ['Export OpenRaster…', 'export-ora']);

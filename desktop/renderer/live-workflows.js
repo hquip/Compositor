@@ -1,5 +1,6 @@
 import { surface, copySurface } from './raster.js';
-import { applyAdjustment } from './adjustments.js';
+import { applyAdjustment, applyCameraRaw } from './adjustments.js';
+import { finishingFilter } from './finishing.js';
 import { parseCube, applyLookup } from './lut.js';
 import { resourceText } from './workflow-assets.js';
 import { warpImage } from './transforms.js';
@@ -13,6 +14,8 @@ export function applyLiveWorkflow(image, workflow, assets, scale = 1) {
     pixels.data.set(applyLookup(pixels.data, cached)); context.putImageData(pixels, 0, 0); return result;
   }
   if (workflow.type === 'live-filter') {
+    if (workflow.cameraRaw) return applyCameraRaw(image, workflow.cameraRaw, scale);
+    if (workflow.finishing) return finishingFilter(image, workflow.finishing.kind, workflow.finishing.settings);
     if (workflow.transform) {
       const points = workflow.transform.map(([x, y]) => ({ x: x * image.width, y: y * image.height })), warped = warpImage(image, points), result = surface(image.width, image.height);
       result.getContext('2d').drawImage(warped.image, ...warped.origin); return result;

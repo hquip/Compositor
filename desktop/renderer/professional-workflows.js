@@ -5,7 +5,8 @@ import { parseCube } from './lut.js';
 import { addResource, resourceText, retainResources } from './workflow-assets.js';
 import { library } from './library-store.js';
 import { ADJUSTMENT_KINDS, adjustmentDefaults } from './adjustments.js';
-import { adjustmentFields } from './adjustment-controls.js';
+import { adjustmentFields, cameraRawFields } from './adjustment-controls.js';
+import { FINISHING, finishingFields } from './finishing.js';
 
 function liveLayer(editor, name, workflow) {
   const layer = createLayer(name, editor.manifest.width, editor.manifest.height); layer.workflow = workflow; layer.parentID = editor.active?.parentID;
@@ -30,6 +31,10 @@ export function installProfessionalWorkflows(editor, api) {
       } else if (workflow.transform) {
         const fields = workflow.transform.flatMap(([x, y], i) => [numberField(`points.${i}.0`, 'Corner ' + (i + 1) + ' X', -4, 4, x, .01), numberField(`points.${i}.1`, 'Corner ' + (i + 1) + ' Y', -4, 4, y, .01)]);
         const value = await settingsDialog('Live transform', fields, { points: workflow.transform }); if (value) editor.mutate('Live transform', () => { workflow.transform = value.points; });
+      } else if (workflow.cameraRaw) {
+        const value = await settingsDialog('Camera Raw', cameraRawFields(editor.composite(true)), workflow.cameraRaw); if (value) editor.mutate('Live Camera Raw', () => { workflow.cameraRaw = value; });
+      } else if (workflow.finishing) {
+        const value = await settingsDialog(workflow.finishing.kind, finishingFields(workflow.finishing.kind), workflow.finishing.settings); if (value) editor.mutate('Live filter', () => { workflow.finishing.settings = value; });
       } else {
         const value = await settingsDialog(workflow.adjustment.kind, adjustmentFields(workflow.adjustment.kind), workflow.adjustment); if (value) editor.mutate('Live filter', () => { workflow.adjustment = value; });
       } return true;
@@ -37,6 +42,8 @@ export function installProfessionalWorkflows(editor, api) {
     if (command.startsWith('live-filter:')) {
       if (!editor.manifest) return true; const kind = command.slice(12);
       if (kind === 'Transform') editor.mutate('Live transform', () => liveLayer(editor, 'Live transform', { type: 'live-filter', transform: [[0, 0], [1, 0], [1, 1], [0, 1]] }));
+      else if (kind === 'Camera Raw') { const value = await settingsDialog('Camera Raw', cameraRawFields(editor.composite(true)), {}); if (value) editor.mutate('Live Camera Raw', () => liveLayer(editor, kind, { type: 'live-filter', cameraRaw: value })); }
+      else if (FINISHING.includes(kind)) { const value = await settingsDialog(kind, finishingFields(kind), {}); if (value) editor.mutate('Live filter', () => liveLayer(editor, kind, { type: 'live-filter', finishing: { kind, settings: value } })); }
       else if (ADJUSTMENT_KINDS.includes(kind)) {
         const value = await settingsDialog(kind, adjustmentFields(kind), adjustmentDefaults(kind)); if (value) editor.mutate('Live filter', () => liveLayer(editor, kind, { type: 'live-filter', adjustment: value }));
       } return true;
