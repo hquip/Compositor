@@ -12,6 +12,7 @@ The Crop controls add 9:20 and custom ratios, with Apply/Cancel next to the dime
 
 ## Windows, Android and iOS shared editor
 
+- Filter mask/parameter edits finish before applying the stack. Late previews cannot cancel a full-resolution apply, and the committed settings/assets are captured together. Cancellation or failure leaves the dialog usable rather than stranding its disabled Apply button.
 - **Export WebP** offers genuine lossless or quality-controlled lossy encoding and optional transparency. Encoding uses a local, cancelable libwebp WebAssembly worker, so it also works where canvas WebP encoding is unavailable. Limits are 16 MP and 16,383 pixels per side. This exports rendered SDR pixels, like ordinary PNG/JPEG; it does not export the original HDR radiance. WebP has no added document-resolution metadata in this implementation.
 - **Tool settings → Crop ratio** adds 9:20 and Custom with independent ratio width/height. The crop frame keeps its ratio at canvas edges and during backward drags. Invalid custom values leave settings open.
 - **File → New from Clipboard** validates and decodes the image before creating another tab. A missing or invalid image leaves the current project intact.

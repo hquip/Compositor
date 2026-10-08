@@ -1,4 +1,21 @@
 export function upstreamEnhancementCases(test, expect, resolvePage) {
+  test('upstream: a late filter preview cannot cancel application or change the committed settings', async () => {
+    const page = resolvePage();
+    await page.evaluate(async () => {
+      const { editor, runCommand } = await import('./app.js'), { surface } = await import('./raster.js');
+      editor.newCanvas(20, 20); const image = surface(20, 20); image.getContext('2d').fillStyle = '#ff0000'; image.getContext('2d').fillRect(0, 0, 20, 20); editor.storePixels(editor.active, image); editor.history.reset();
+      window.latePreviewOperation = runCommand('editable-filter:Invert');
+    });
+    await expect(page.getByRole('spinbutton', { name: 'Filter opacity', exact: true })).toBeVisible();
+    await page.evaluate(() => {
+      const dialog = document.querySelector('.filter-stack-dialog'); dialog.querySelector('.dialog-actions .primary').click();
+      const opacity = dialog.querySelector('input[aria-label="Filter opacity"]'); opacity.value = '25'; opacity.dispatchEvent(new Event('change', { bubbles: true }));
+    });
+    await expect(page.locator('.filter-stack-dialog')).toHaveCount(0);
+    await page.evaluate(() => window.latePreviewOperation);
+    expect(await page.evaluate(async () => { const e = (await import('./app.js')).editor; return { pixel: [...e.composite(true).getContext('2d').getImageData(0, 0, 1, 1).data], opacity: e.active.filters[0].opacity ?? 1, undo: e.history.past.length }; })).toEqual({ pixel: [0, 255, 255, 255], opacity: 1, undo: 1 });
+  });
+
   test('upstream: new from clipboard creates a correctly sized tab and failed reads retain the original project', async () => {
     const page = resolvePage();
     const result = await page.evaluate(async () => {

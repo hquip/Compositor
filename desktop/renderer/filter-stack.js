@@ -59,8 +59,9 @@ export function installFilterStack(editor, api) {
     const actions = document.createElement('div'); actions.className = 'dialog-actions';
     const cancel = document.createElement('button'); cancel.textContent = 'Cancel'; const apply = document.createElement('button'); apply.textContent = 'Apply'; apply.className = 'primary';
     actions.append(cancel, apply); dialog.append(title, note, list, kind, add, progress, actions); document.body.append(dialog);
-    let sequence = 0, closed = false, applying = false;
-    const preview = async () => {
+    let sequence = 0, closed = false, applying = false, editing = false;
+    const preview = async (child = false) => {
+      if (closed || applying || (editing && !child)) return;
       const token = ++sequence; task.cancel(); progress.textContent = 'Updating preview…';
       try {
         const image = await renderFilterStack(thumbnail, structuredClone(filters), task, scale, limits, maskAssets, () => !closed && token === sequence);
@@ -68,29 +69,40 @@ export function installFilterStack(editor, api) {
         editor.rasterPreview = { layerID: layer.id, isMask: false, transform: structuredClone(layer.transform), image }; editor.update(); progress.textContent = 'Preview ready';
       } catch (error) { if (!closed && token === sequence && error.name !== 'AbortError') progress.textContent = error.message; }
     };
+    const editFilter = async (update) => {
+      if (closed || applying || editing) return;
+      editing = true; sequence++; task.cancel(); list.inert = true; add.disabled = apply.disabled = kind.disabled = true;
+      try { await update(); }
+      catch (error) { if (!closed) api.showError(error); }
+      finally {
+        editing = false;
+        if (!closed) { list.inert = applying; apply.disabled = kind.disabled = applying; draw(); if (!applying) preview(); }
+      }
+    };
     const draw = () => {
       list.replaceChildren();
       filters.forEach((entry, index) => {
         const row = document.createElement('div'); row.className = 'filter-stack-row';
         const visible = document.createElement('input'); visible.type = 'checkbox'; visible.checked = entry.enabled; visible.setAttribute('aria-label', 'Enable filter'); visible.addEventListener('change', () => { entry.enabled = visible.checked; preview(); });
-        const edit = document.createElement('button'); edit.textContent = entry.adjustment.kind; edit.addEventListener('click', async () => {
-          sequence++; task.cancel(); const initial = structuredClone(entry.adjustment);
-          const result = await settingsDialog(entry.adjustment.kind, adjustmentFields(entry.adjustment.kind), editableAdjustment(entry.adjustment), (value) => { entry.adjustment = savedAdjustment(value); return preview(); });
-          entry.adjustment = result ? savedAdjustment(result) : initial; preview();
-        });
+        const edit = document.createElement('button'); edit.textContent = entry.adjustment.kind; edit.addEventListener('click', () => editFilter(async () => {
+          const initial = structuredClone(entry.adjustment);
+          const result = await settingsDialog(entry.adjustment.kind, adjustmentFields(entry.adjustment.kind), editableAdjustment(entry.adjustment), (value) => { entry.adjustment = savedAdjustment(value); return preview(true); });
+          if (!closed) entry.adjustment = result ? savedAdjustment(result) : initial;
+        }));
         const up = document.createElement('button'); up.textContent = '↑'; up.setAttribute('aria-label', 'Move filter up'); up.disabled = index === 0; up.addEventListener('click', () => { [filters[index - 1], filters[index]] = [filters[index], filters[index - 1]]; draw(); preview(); });
         const down = document.createElement('button'); down.textContent = '↓'; down.setAttribute('aria-label', 'Move filter down'); down.disabled = index === filters.length - 1; down.addEventListener('click', () => { [filters[index + 1], filters[index]] = [filters[index], filters[index + 1]]; draw(); preview(); });
         const remove = document.createElement('button'); remove.textContent = 'Remove'; remove.addEventListener('click', () => { filters.splice(index, 1); draw(); preview(); });
         const main = document.createElement('div'); main.className = 'filter-stack-main'; main.append(visible, edit, up, down, remove);
         const mix = document.createElement('div'); mix.className = 'filter-stack-mix';
-        const mask = document.createElement('button'); mask.textContent = entry.maskFile ? 'Edit filter mask…' : 'Add filter mask…'; mask.addEventListener('click', async () => {
-          sequence++; task.cancel();
-          try { const prepared = await preparedFilters([{ ...entry, enabled: true, maskEnabled: true, opacity: 1 }], maskAssets), result = await editFilterMask(source, prepared[0].mask, api, limits); if (result) { entry.maskFile = filterMaskName(layer.id, entry.id); entry.maskEnabled ??= true; maskAssets[entry.maskFile] = result; draw(); } }
-          catch (error) { api.showError(error); } if (!closed) preview();
-        });
-        const selection = document.createElement('button'); selection.textContent = 'Use selection as filter mask'; selection.disabled = !editor.selection; selection.addEventListener('click', async () => {
-          try { const canvas = mappedSelection(editor, layer, source.width, source.height), bytes = binaryBase64(await encodePNGGray(canvas.width, canvas.height, maskValues(canvas))); entry.maskFile = filterMaskName(layer.id, entry.id); maskAssets[entry.maskFile] = bytes; entry.maskEnabled = true; draw(); preview(); } catch (error) { api.showError(error); }
-        });
+        const mask = document.createElement('button'); mask.textContent = entry.maskFile ? 'Edit filter mask…' : 'Add filter mask…'; mask.addEventListener('click', () => editFilter(async () => {
+          const prepared = await preparedFilters([{ ...entry, enabled: true, maskEnabled: true, opacity: 1 }], maskAssets); if (closed) return;
+          const result = await editFilterMask(source, prepared[0].mask, api, limits);
+          if (result && !closed) { entry.maskFile = filterMaskName(layer.id, entry.id); entry.maskEnabled ??= true; maskAssets[entry.maskFile] = result; }
+        }));
+        const selection = document.createElement('button'); selection.textContent = 'Use selection as filter mask'; selection.disabled = !editor.selection; selection.addEventListener('click', () => editFilter(async () => {
+          const canvas = mappedSelection(editor, layer, source.width, source.height), bytes = binaryBase64(await encodePNGGray(canvas.width, canvas.height, maskValues(canvas))); if (closed) return;
+          entry.maskFile = filterMaskName(layer.id, entry.id); maskAssets[entry.maskFile] = bytes; entry.maskEnabled = true;
+        }));
         const opacityLabel = document.createElement('label'); opacityLabel.textContent = 'Filter opacity'; const opacity = document.createElement('input'); opacity.type = 'number'; opacity.min = '0'; opacity.max = '100'; opacity.value = String((entry.opacity ?? 1) * 100); opacity.setAttribute('aria-label', 'Filter opacity'); opacity.addEventListener('change', () => { const value = Number(opacity.value); if (!Number.isFinite(value) || value < 0 || value > 100) { opacity.value = String((entry.opacity ?? 1) * 100); return; } entry.opacity = value / 100; preview(); }); opacityLabel.append(opacity);
         mix.append(mask, selection, opacityLabel);
         if (entry.maskFile) {
@@ -103,23 +115,25 @@ export function installFilterStack(editor, api) {
     const insert = (name) => { if (source.compositorHDR && !HDR_FILTERS.includes(name)) { progress.textContent = 'This filter needs an SDR layer or a rasterized HDR display.'; draw(); return; } if (filters.length < 32 && ADJUSTMENT_KINDS.includes(name)) filters.push({ id: crypto.randomUUID().toUpperCase(), enabled: true, adjustment: savedAdjustment(adjustmentDefaults(name)) }); draw(); preview(); };
     add.addEventListener('click', () => insert(kind.value)); cancel.addEventListener('click', () => dialog.close());
     apply.addEventListener('click', async () => {
+      if (applying || editing || closed) return;
       if (JSON.stringify(filters) === JSON.stringify(layer.filters ?? []) && filters.every((entry) => !entry.maskFile || maskAssets[entry.maskFile] === editor.assets[entry.maskFile])) { dialog.close('apply'); return; }
-      if (applying) return; applying = true; sequence++; task.cancel(); list.inert = true; add.disabled = apply.disabled = true; kind.disabled = true; progress.textContent = 'Processing full-resolution image…';
+      const appliedFilters = structuredClone(filters), appliedAssets = { ...maskAssets };
+      applying = true; sequence++; task.cancel(); list.inert = true; add.disabled = apply.disabled = true; kind.disabled = true; progress.textContent = 'Processing full-resolution image…';
       try {
-        const output = await renderFilterStack(source, filters, task, 1, limits, maskAssets, () => !closed); if (closed) return;
+        const output = await renderFilterStack(source, appliedFilters, task, 1, limits, appliedAssets, () => !closed); if (closed) return;
         const used = documentPixels(editor);
-        if (filters.length && !layer.filterSourceFile && !layer.hdrSourceFile && used + source.width * source.height > editor.pixelBudget) throw new Error('The editable filter source exceeds the document pixel budget.');
+        if (appliedFilters.length && !layer.filterSourceFile && !layer.hdrSourceFile && used + source.width * source.height > editor.pixelBudget) throw new Error('The editable filter source exceeds the document pixel budget.');
         const maskPixels = (entries, assets) => entries.reduce((sum, entry) => { if (!entry.maskFile) return sum; const bytes = base64Bytes(assets[entry.maskFile]), view = new DataView(bytes.buffer, bytes.byteOffset, bytes.byteLength); return sum + view.getUint32(16) * view.getUint32(20); }, 0);
-        if (used - maskPixels(layer.filters ?? [], editor.assets) + maskPixels(filters, maskAssets) + (!layer.filterSourceFile && !layer.hdrSourceFile && filters.length ? source.width * source.height : 0) > editor.pixelBudget) throw new Error('The filter masks exceed the document pixel budget.');
+        if (used - maskPixels(layer.filters ?? [], editor.assets) + maskPixels(appliedFilters, appliedAssets) + (!layer.filterSourceFile && !layer.hdrSourceFile && appliedFilters.length ? source.width * source.height : 0) > editor.pixelBudget) throw new Error('The filter masks exceed the document pixel budget.');
         editor.rasterPreview = null;
         editor.mutate('Editable Filters', () => {
           for (const name of filterAssetNames(layer)) delete editor.assets[name];
           editor.storePixels(layer, output, { filterCache: true }); editor.rasterize(layer);
-          if (source.compositorHDR) { output.compositorHDRSource = source.compositorHDR; editor.assets[layer.hdrSourceFile] = original; layer.filters = filters.length ? structuredClone(filters) : [{ id: crypto.randomUUID().toUpperCase(), enabled: false, adjustment: adjustmentDefaults('Exposure') }]; }
-          else if (filters.length || source.compositorPrecision || layer.smartObject) { layer.filterSourceFile = `${layer.id}.source.png`; editor.assets[layer.filterSourceFile] = original; layer.filters = filters.length ? structuredClone(filters) : [{ id: crypto.randomUUID().toUpperCase(), enabled: false, adjustment: adjustmentDefaults('Exposure') }]; if (source.compositorPrecision) layer.filterWorkingSpace = source.compositorWorkingSpace; }
-          for (const name of filterAssetNames(layer)) editor.assets[name] = maskAssets[name];
+          if (source.compositorHDR) { output.compositorHDRSource = source.compositorHDR; editor.assets[layer.hdrSourceFile] = original; layer.filters = appliedFilters.length ? appliedFilters : [{ id: crypto.randomUUID().toUpperCase(), enabled: false, adjustment: adjustmentDefaults('Exposure') }]; }
+          else if (appliedFilters.length || source.compositorPrecision || layer.smartObject) { layer.filterSourceFile = `${layer.id}.source.png`; editor.assets[layer.filterSourceFile] = original; layer.filters = appliedFilters.length ? appliedFilters : [{ id: crypto.randomUUID().toUpperCase(), enabled: false, adjustment: adjustmentDefaults('Exposure') }]; if (source.compositorPrecision) layer.filterWorkingSpace = source.compositorWorkingSpace; }
+          for (const name of filterAssetNames(layer)) editor.assets[name] = appliedAssets[name];
         }); editor.recordAction?.({ type: 'editable-filters', filters: structuredClone(layer.filters ?? []), maskAssets: Object.fromEntries(filterAssetNames(layer).map((name) => [name, editor.assets[name]])) }); dialog.close('apply');
-      } catch (error) { if (!closed && error.name !== 'AbortError') { applying = false; list.inert = false; apply.disabled = false; kind.disabled = false; add.disabled = filters.length >= 32; progress.textContent = error.message; } }
+      } catch (error) { if (!closed) { applying = false; list.inert = false; apply.disabled = false; kind.disabled = false; add.disabled = filters.length >= 32; progress.textContent = error.message; } }
     });
     dialog.showModal();
     if (command.startsWith('editable-filter:')) insert(command.slice('editable-filter:'.length)); else { draw(); preview(); }
