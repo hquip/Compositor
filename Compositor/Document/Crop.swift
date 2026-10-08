@@ -227,7 +227,7 @@ extension EditorSession {
         case "Custom":
             guard cropCustomWidth.isFinite, cropCustomHeight.isFinite,
                   (1...10000).contains(cropCustomWidth), (1...10000).contains(cropCustomHeight) else { return nil }
-            return cropCustomWidth / cropCustomHeight
+            return CGFloat(cropCustomWidth / cropCustomHeight)
         default: return nil
         }
     }

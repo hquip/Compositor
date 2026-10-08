@@ -189,8 +189,8 @@ final class EditorSession {
     var collapsedGroupIDs: Set<UUID> = []
     var cropRect: CGRect?
     var cropRatioChoice = "Free"
-    var cropCustomWidth: CGFloat = 9
-    var cropCustomHeight: CGFloat = 20
+    var cropCustomWidth: Double = 9
+    var cropCustomHeight: Double = 20
     var cropError: String?
     var transformEdit: TransformEdit?
     @ObservationIgnored var distortPreviewCache: [UUID: DistortPreviewCache] = [:]
