@@ -32,11 +32,16 @@ nonisolated struct WorkflowLookup: Codable, Equatable, Sendable {
         return WorkflowLookup(size: size, dimension: dimension, minimum: minimum, maximum: maximum, values: values)
     }
     func color(_ input: [Double]) -> [Double] {
-        let coordinates = (0..<3).map { max(0, min(1, (input[$0] - minimum[$0]) / (maximum[$0] - minimum[$0]))) * Double(size - 1) }
-        if dimension == 1 { return (0..<3).map { c in let low = Int(coordinates[c]), high = min(size - 1, low + 1), amount = coordinates[c] - Double(low); return Double(values[low * 3 + c]) * (1 - amount) + Double(values[high * 3 + c]) * amount } }
-        let low = coordinates.map { Int($0) }, fractions = (0..<3).map { coordinates[$0] - Double(low[$0]) }; var result = [0.0, 0, 0]
+        var coordinates = [Double](); coordinates.reserveCapacity(3)
+        for c in 0..<3 { let normalized = (input[c] - minimum[c]) / (maximum[c] - minimum[c]); coordinates.append(max(0, min(1, normalized)) * Double(size - 1)) }
+        if dimension == 1 {
+            var result = [Double](); result.reserveCapacity(3)
+            for c in 0..<3 { let low = Int(coordinates[c]); let high = min(size - 1, low + 1); let amount = coordinates[c] - Double(low); let value = Double(values[low * 3 + c]) * (1 - amount) + Double(values[high * 3 + c]) * amount; result.append(value) }
+            return result
+        }
+        let low = coordinates.map { Int($0) }; let fractions = (0..<3).map { coordinates[$0] - Double(low[$0]) }; var result = [0.0, 0, 0]
         for b in 0...1 { for g in 0...1 { for r in 0...1 {
-            let at = ((min(size - 1, low[2] + b) * size + min(size - 1, low[1] + g)) * size + min(size - 1, low[0] + r)) * 3
+            let blue = min(size - 1, low[2] + b); let green = min(size - 1, low[1] + g); let red = min(size - 1, low[0] + r); let at = (blue * size + green) * size * 3 + red * 3
             let weight = (r == 1 ? fractions[0] : 1 - fractions[0]) * (g == 1 ? fractions[1] : 1 - fractions[1]) * (b == 1 ? fractions[2] : 1 - fractions[2])
             for c in 0..<3 { result[c] += Double(values[at + c]) * weight }
         } } }
