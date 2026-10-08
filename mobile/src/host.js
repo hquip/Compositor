@@ -11,7 +11,6 @@ import { configureCanvasLimits } from './core.js';
 import { withResolution } from './metadata.js';
 import { decodeTiff } from './tiff.js';
 import { installMobileLayout } from './layout.js';
-
 const library = new ProjectLibrary(Filesystem, Directory.Data), sessions = new Map(), listeners = new Set();
 const nativeImages = registerPlugin('CompositorImages');
 if (!crypto.randomUUID) crypto.randomUUID = () => {
@@ -90,7 +89,7 @@ window.desktop = Object.freeze({
     }
     return images;
   }),
-  exportImage: (data, format, resolution) => result(async () => shareBytes(withResolution(unbase64(data.split(',')[1]), format, resolution), (state.name ?? 'Image') + (format === 'jpeg' ? '.jpg' : '.png'), format === 'jpeg' ? 'image/jpeg' : 'image/png')),
+  exportImage: (data, format, resolution) => result(async () => shareBytes(withResolution(unbase64(data.split(',')[1]), format, resolution), (state.name ?? 'Image') + '.' + (format === 'jpeg' ? 'jpg' : format), 'image/' + format)),
   exportFile: (data, format, name) => result(async () => shareBytes(unbase64(data), (name || state.name || 'Image') + '.' + format, { psd: 'image/vnd.adobe.photoshop', psb: 'image/vnd.adobe.photoshop', tiff: 'image/tiff', exr: 'image/x-exr', icc: 'application/vnd.iccprofile', zip: 'application/zip' }[format] ?? 'application/octet-stream')),
   reloadProject: (id) => result(async () => { const record = (await library.list()).find((project) => project.id === sessions.get(id)); return record ? library.read(record) : null; }),
   copyImage: (data) => result(() => Clipboard.write({ image: data })),
@@ -112,7 +111,7 @@ editor.install = async (...args) => { await openCanvas(...args); editor.history.
 document.querySelector('.inspector-note span').textContent = `${Capacitor.getPlatform() === 'ios' ? 'iOS' : Capacitor.getPlatform() === 'android' ? 'Android' : 'Mobile'} · 0.5`;
 document.querySelector('#tool-hint').textContent = 'Two fingers to pan and zoom';
 const menu = document.querySelector('.editor-menus');
-for (const [name, entries] of [ ['File', [['New', 'new'], ['Open', 'open'], ['Import', 'import'], ['Save', 'save'], ['Save As', 'save-as'], ['Share project', 'share-project'], ['Export PNG', 'export-png'], ['Export JPEG', 'export-jpeg'], ['Close project', 'close-tab']]], ['Edit', [['Undo', 'undo'], ['Redo', 'redo'], ['Cut', 'cut'], ['Copy', 'copy'], ['Copy Merged', 'copy-merged'], ['Paste', 'paste']]] ]) {
+for (const [name, entries] of [ ['File', [['New', 'new'], ['New from Clipboard', 'new-from-clipboard'], ['Open', 'open'], ['Import', 'import'], ['Save', 'save'], ['Save As', 'save-as'], ['Share project', 'share-project'], ['Export PNG', 'export-png'], ['Export JPEG', 'export-jpeg'], ['Export WebP', 'export-webp'], ['Close project', 'close-tab']]], ['Edit', [['Undo', 'undo'], ['Redo', 'redo'], ['Cut', 'cut'], ['Copy', 'copy'], ['Copy Merged', 'copy-merged'], ['Paste', 'paste']]] ]) {
   const details = document.createElement('details'), summary = document.createElement('summary'), dropdown = document.createElement('div'); details.dataset.category = name.toLowerCase(); summary.textContent = name; dropdown.className = 'editor-menu-dropdown';
   for (const [label, command] of entries) {
     const button = document.createElement('button'); button.textContent = label;

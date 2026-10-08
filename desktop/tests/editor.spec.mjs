@@ -18,6 +18,7 @@ import { smartHDRCases } from './smart-hdr-cases.mjs';
 import { openEXRCases } from './openexr-cases.mjs';
 import { advancedEXRCases } from './exr-advanced-cases.mjs';
 import { professionalCases } from './professional-cases.mjs';
+import { upstreamEnhancementCases } from './upstream-enhancement-cases.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 let application, browser, page, directory, errors;
@@ -29,6 +30,7 @@ advancedEXRCases(test, expect, () => page);
 parityCases(test, expect, () => page);
 enhancementCases(test, expect, () => page);
 professionalCases(test, expect, () => page);
+upstreamEnhancementCases(test, expect, () => page);
 
 async function freePort() {
   const server = net.createServer();

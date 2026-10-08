@@ -2,6 +2,8 @@ import { cloneLayers, selected } from './layer-operations.js';
 import { settingsDialog, numberField as n } from './settings-dialog.js';
 import { createLayer, History } from './core.js';
 import { surface, copySurface, place } from './raster.js';
+import { decodeImage } from './compose.js';
+import { canvasSize } from './core.js';
 import { selectionCanvas } from './masks.js';
 import { mappedSelection } from './tools.js';
 import { restoreLocalHistory } from './saved-history.js';
@@ -100,6 +102,16 @@ export function installWorkspace(editor, api) {
   };
   const previous = editor.advancedCommand;
   editor.advancedCommand = async (command) => {
+    if (command === 'new-from-clipboard') {
+      const response = await window.desktop.pasteImage(); if (!response.ok) throw new Error(response.error);
+      if (!response.value) throw new Error('The clipboard does not contain an image.');
+      const image = await decodeImage(response.value), width = image.naturalWidth, height = image.naturalHeight; canvasSize(width, height);
+      if (width * height > editor.pixelBudget) throw new Error('The clipboard image exceeds the document pixel budget.');
+      const canvas = surface(width, height); canvas.getContext('2d').drawImage(image, 0, 0);
+      if (editor.manifest) editor.projectSnapshot(); editor.newCanvas(width, height);
+      editor.mutate('New from Clipboard', () => { editor.active.name = 'Pasted'; editor.storePixels(editor.active, canvas); });
+      window.desktop.setDocumentState({ name: editor.name, documentID: editor.manifest.documentID, dirty: true, resetPath: true }); return true;
+    }
     if (command === 'close') { if (await editor.workspace.closeAll()) window.desktop.readyToClose(); return true; }
     if (command === 'close-tab') { await closeTab(current); return true; }
     if (command === 'copy' || command === 'copy-merged' || command === 'cut') {

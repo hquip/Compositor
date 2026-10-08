@@ -1,5 +1,23 @@
 import Foundation
 
+extension ProjectSnapshot {
+    @MainActor func makeCanvasDocument() -> CanvasDocument {
+        let m = manifest
+        return CanvasDocument(id: m.documentID, width: m.width, height: m.height,
+            layers: m.layers.map {
+                ImageLayer(id: $0.id, asset: images[$0.id], name: $0.name,
+                    isVisible: $0.isVisible, transform: $0.transform, parentID: $0.parentID, isGroup: $0.isGroup == true,
+                    opacity: $0.opacity ?? 1, blendMode: $0.blendMode ?? .normal, mask: mask(for: $0),
+                    maskSourceID: $0.maskSourceID, adjustment: $0.adjustment,
+                    shape: LayerShape.loaded($0.shape, image: images[$0.id]?.image), effects: $0.effects,
+                    text: LayerText.loaded($0.text, image: images[$0.id]?.image), editableFilters: filterState(for: $0),
+                    vectorPath: LayerVectorPath.loaded($0.vectorPath, image: images[$0.id]?.image),
+                    vectorMask: LayerVectorPath.loaded($0.vectorMask, image: masks[$0.id]?.image),
+                    hdrSource: hdrState(for: $0), smartObject: $0.smartObject)
+            }, resolution: m.resolution ?? 72, guides: m.guides ?? [], hdrView: m.hdrView, hdrWorkingSpace: m.hdrWorkingSpace)
+    }
+}
+
 extension EditorSession {
     func projectSnapshot() -> ProjectSnapshot? {
         guard let document else { return nil }
@@ -34,20 +52,9 @@ extension EditorSession {
         isMaskSelected = false
         cancelCrop()
         guideDrag = nil
-        let manifest = snapshot.manifest
         transformEdit = nil
-        document = CanvasDocument(id: manifest.documentID, width: manifest.width, height: manifest.height,
-            layers: manifest.layers.map {
-                ImageLayer(id: $0.id, asset: snapshot.images[$0.id], name: $0.name,
-                           isVisible: $0.isVisible, transform: $0.transform, parentID: $0.parentID, isGroup: $0.isGroup == true, opacity: $0.opacity ?? 1, blendMode: $0.blendMode ?? .normal, mask: snapshot.mask(for: $0), maskSourceID: $0.maskSourceID, adjustment: $0.adjustment,
-                           shape: LayerShape.loaded($0.shape, image: snapshot.images[$0.id]?.image),
-                           effects: $0.effects,
-                           text: LayerText.loaded($0.text, image: snapshot.images[$0.id]?.image),
-                           editableFilters: snapshot.filterState(for: $0),
-                           vectorPath: LayerVectorPath.loaded($0.vectorPath, image: snapshot.images[$0.id]?.image),
-                           vectorMask: LayerVectorPath.loaded($0.vectorMask, image: snapshot.masks[$0.id]?.image), hdrSource: snapshot.hdrState(for: $0), smartObject: $0.smartObject)
-            }, resolution: manifest.resolution ?? 72, guides: manifest.guides ?? [], hdrView: manifest.hdrView, hdrWorkingSpace: manifest.hdrWorkingSpace)
-        activeLayerID = manifest.activeLayerID
+        document = snapshot.makeCanvasDocument()
+        activeLayerID = snapshot.manifest.activeLayerID
         projectURL = url
         renamingLayerID = nil
         history.reset()

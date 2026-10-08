@@ -22,6 +22,7 @@
     "esbuild": "0.28.2"
   },
   "dependencies": {
+    "@jsquash/webp": "1.5.0",
     "ag-psd": "31.0.2",
     "bidi-js": "1.1.0",
     "fflate": "0.8.3",

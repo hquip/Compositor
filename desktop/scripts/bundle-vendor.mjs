@@ -5,6 +5,11 @@ import { createHash } from 'node:crypto';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const exrRuntime = JSON.parse(await readFile(root + '/native/exr/runtime.json', 'utf8'));
 await mkdir(root + '/renderer/vendor/openexr', { recursive: true });
+await mkdir(root + '/renderer/vendor/webp', { recursive: true });
+await build({ entryPoints: [root + '/vendor/webp-entry.js'], outfile: root + '/renderer/vendor/webp/webp.js', bundle: true, minify: true,
+  format: 'esm', platform: 'browser', target: 'es2022', legalComments: 'eof' });
+for (const name of ['webp_enc.wasm', 'webp_enc_simd.wasm']) await copyFile(root + '/node_modules/@jsquash/webp/codec/enc/' + name, root + '/renderer/vendor/webp/' + name);
+await copyFile(root + '/node_modules/@jsquash/webp/LICENSE', root + '/third-party/jSquash-WebP-LICENSE.txt');
 for (const [name, digest] of Object.entries(exrRuntime.files)) {
   const file = root + '/native/exr/prebuilt/' + name;
   if (createHash('sha256').update(await readFile(file)).digest('hex') !== digest) throw new Error('The bundled OpenEXR runtime has an unexpected checksum.');

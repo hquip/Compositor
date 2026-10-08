@@ -50,6 +50,10 @@ struct CompositorApp: App {
                         Task { await applicationDelegate.projects.newCanvas() }
                     }.configuredKeyboardShortcut("n")
                         .disabled(!applicationDelegate.projects.canStart)
+                    Button("New from Clipboard") {
+                        applicationDelegate.showEditor?()
+                        Task { await applicationDelegate.projects.newFromClipboard() }
+                    }.disabled(!applicationDelegate.projects.canStart)
                     Button("Open Project…") {
                         applicationDelegate.showEditor?()
                         Task { await applicationDelegate.projects.open() }

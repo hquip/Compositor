@@ -8,6 +8,13 @@ nonisolated struct ImageSizeOptions: Sendable {
     var sampling: LayerSampling = .high
 }
 
+nonisolated enum ImageResizeError: LocalizedError {
+    case editableShear
+    var errorDescription: String? {
+        "Uneven resizing of a rotated editable layer would require shear. Use proportional resizing or rasterize that layer first."
+    }
+}
+
 actor ImageResizer {
     static let shared = ImageResizer()
 
@@ -15,7 +22,6 @@ actor ImageResizer {
         guard (1...DocumentLimits.maxSide).contains(options.width), (1...DocumentLimits.maxSide).contains(options.height),
               options.resolution.isFinite, (1...9600).contains(options.resolution) else { throw ProjectError.tooLarge }
         let old = snapshot.manifest
-        if (old.width != options.width || old.height != options.height), !snapshot.hdrSources.isEmpty || old.layers.contains(where: { $0.smartObject != nil }) || snapshot.filterSources.values.contains(where: { $0.image.bitsPerComponent > 8 }) { throw EditableFilterError.highPrecisionResize }
         var manifest = ProjectManifest(resolution: options.resolution, documentID: old.documentID,
             width: options.width, height: options.height, activeLayerID: old.activeLayerID, layers: [],
             guides: old.guides, hdrView: old.hdrView, hdrWorkingSpace: old.hdrWorkingSpace)
@@ -32,6 +38,34 @@ actor ImageResizer {
         var usedPixels = 0, usedMaskPixels = 0
         for layer in old.layers {
             try Task.checkCancellation()
+            if layer.text != nil || layer.shape != nil || layer.vectorPath != nil || layer.filterSourceFile != nil || layer.hdrSourceFile != nil || layer.smartObject != nil {
+                let scale = CGAffineTransform(scaleX: sx, y: sy)
+                func scaled(_ original: LayerTransform) throws -> LayerTransform {
+                    let map = original.unitToDocument.concatenating(scale)
+                    let lengths = hypot(map.a, map.b) * hypot(map.c, map.d)
+                    guard abs(map.a * map.c + map.b * map.d) <= lengths * 1e-8 else { throw ImageResizeError.editableShear }
+                    var result = original.placing(map)
+                    result.sampling = options.sampling
+                    guard result.isValid else { throw ProjectError.tooLarge }
+                    return result
+                }
+                var record = layer
+                record.transform = try scaled(layer.transform)
+                record.maskPlacement = try layer.maskPlacement.map { try scaled($0) }
+                if var object = record.smartObject { object.baseTransform = try scaled(object.baseTransform); record.smartObject = object }
+                if let source = snapshot.images[layer.id] {
+                    usedPixels += source.image.width * source.image.height
+                    guard usedPixels <= DocumentLimits.documentPixelBudget else { throw ProjectError.tooLarge }
+                    images[layer.id] = source
+                }
+                if let mask = snapshot.masks[layer.id] {
+                    usedMaskPixels += mask.image.width * mask.image.height
+                    guard usedMaskPixels <= DocumentLimits.documentPixelBudget else { throw ProjectError.tooLarge }
+                    masks[layer.id] = mask
+                }
+                manifest.layers.append(record)
+                continue
+            }
             // Rasterize each transformed layer independently. Nonuniform scaling of a
             // rotated rectangle can introduce shear, which width/height/angle cannot represent.
             let corners = [CGPoint(x: 0, y: 0), CGPoint(x: 1, y: 0), CGPoint(x: 1, y: 1), CGPoint(x: 0, y: 1)]
@@ -93,14 +127,14 @@ actor ImageResizer {
                     masks[layer.id] = try LayerMask.asset(from: image)
                 }
             }
-            manifest.layers.append(ProjectLayerRecord(id: layer.id, name: layer.name, isVisible: layer.isVisible,
-                transform: transform, imageFile: layer.imageFile, parentID: layer.parentID, isGroup: layer.isGroup, opacity: layer.opacity, blendMode: layer.blendMode, maskFile: layer.maskFile, maskEnabled: layer.maskEnabled, maskSourceID: layer.maskSourceID, adjustment: layer.adjustment,
-                maskPlacement: layer.maskPlacement.map { $0.placing($0.unitToDocument.concatenating(CGAffineTransform(scaleX: sx, y: sy))) },
-                maskLinked: layer.maskLinked,
-                vectorPath: layer.vectorPath?.carried(from: layer.transform, to: transform, scaleX: sx, scaleY: sy),
-                vectorMask: layer.maskPlacement == nil ? layer.vectorMask?.carried(from: layer.transform, to: transform, scaleX: sx, scaleY: sy) : layer.vectorMask))
+            var record = layer
+            record.transform = transform
+            record.maskPlacement = layer.maskPlacement.map { $0.placing($0.unitToDocument.concatenating(CGAffineTransform(scaleX: sx, y: sy))) }
+            record.vectorMask = layer.maskPlacement == nil ? layer.vectorMask?.carried(from: layer.transform, to: transform, scaleX: sx, scaleY: sy) : layer.vectorMask
+            manifest.layers.append(record)
         }
-        return ProjectSnapshot(manifest: manifest, images: images, masks: masks)
+        return ProjectSnapshot(manifest: manifest, images: images, masks: masks, filterSources: snapshot.filterSources,
+            filterMasks: snapshot.filterMasks, hdrSources: snapshot.hdrSources, exrSources: snapshot.exrSources)
     }
 }
 
@@ -112,10 +146,8 @@ extension EditorSession {
     func applyDocumentSize(_ snapshot: ProjectSnapshot, actionName: String) {
         guard document?.id == snapshot.manifest.documentID else { return }
         beginEdit(actionName)
-        let m = snapshot.manifest
-        document = CanvasDocument(id: m.documentID, width: m.width, height: m.height,
-            layers: m.layers.map { ImageLayer(id: $0.id, asset: snapshot.images[$0.id], name: $0.name,
-                isVisible: $0.isVisible, transform: $0.transform, parentID: $0.parentID, isGroup: $0.isGroup == true, opacity: $0.opacity ?? 1, blendMode: $0.blendMode ?? .normal, mask: snapshot.mask(for: $0), maskSourceID: $0.maskSourceID, adjustment: $0.adjustment) }, resolution: m.resolution ?? 72, guides: m.guides ?? [])
+        document = snapshot.makeCanvasDocument()
+        activeLayerID = snapshot.manifest.activeLayerID
         endEdit()
         viewport.fit(documentSize: document!.size)
     }

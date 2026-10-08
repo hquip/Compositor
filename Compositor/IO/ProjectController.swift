@@ -304,6 +304,25 @@ final class ProjectController {
         if proceed { session.clearProject(); stopWatchingProject() }
     }
 
+    func newFromClipboard(_ pasteboard: NSPasteboard = .general) async {
+        guard canStart, let external = NSImage(pasteboard: pasteboard)?.cgImage(forProposedRect: nil, context: nil, hints: nil),
+              external.width <= DocumentLimits.maxSide, external.height <= DocumentLimits.maxSide,
+              external.width * external.height <= DocumentLimits.maxSurfacePixels,
+              let image = try? EditorSession.sRGBCopy(of: external),
+              let thumbnail = try? PixelAdjust.thumbnail(of: image) else { NSSound.beep(); return }
+        if let workspace {
+            guard workspace.canSwitch else { return }
+            workspace.newCanvas()
+            workspace.current.session.createDocument(width: image.width, height: image.height)
+            workspace.current.session.insert(ImportedImage(image: image, thumbnail: thumbnail, name: "Pasted"))
+        } else {
+            guard await confirmQuit() else { return }
+            session.clearProject(); stopWatchingProject()
+            session.createDocument(width: image.width, height: image.height)
+            session.insert(ImportedImage(image: image, thumbnail: thumbnail, name: "Pasted"))
+        }
+    }
+
     func close(_ window: NSWindow) async {
         if let workspace, let tab = workspace.tabs.first(where: { $0.controller === self }) {
             await workspace.close(tab.id); return

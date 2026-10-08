@@ -29,7 +29,10 @@ actor CanvasResizer {
                     moved.origin.y += offset.y
                     return moved
                 }, maskLinked: layer.maskLinked, shape: layer.shape, effects: layer.effects, text: layer.text,
-                filterSourceFile: layer.filterSourceFile, filters: layer.filters, filterWorkingSpace: layer.filterWorkingSpace, vectorPath: layer.vectorPath, vectorMask: layer.vectorMask, hdrSourceFile: layer.hdrSourceFile, smartObject: layer.smartObject))
+                filterSourceFile: layer.filterSourceFile, filters: layer.filters, filterWorkingSpace: layer.filterWorkingSpace, vectorPath: layer.vectorPath, vectorMask: layer.vectorMask, hdrSourceFile: layer.hdrSourceFile,
+                exrSourceFile: layer.exrSourceFile, exrView: layer.exrView, smartObject: layer.smartObject.map { object in
+                    var moved = object; moved.baseTransform.origin.x += offset.x; moved.baseTransform.origin.y += offset.y; return moved
+                }))
         }
         var images = snapshot.images
         // A colored extension is separate bottom-layer content. The old canvas

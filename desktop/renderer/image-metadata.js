@@ -1,4 +1,5 @@
 export function withResolution(bytes, format, resolution = 72) {
+  if (format !== 'png' && format !== 'jpeg') return bytes;
   const dpi = Math.max(1, Math.min(9600, Math.round(Number(resolution) || 72)));
   if (format === 'png') {
     const chunk = new Uint8Array(21), view = new DataView(chunk.buffer); view.setUint32(0, 9); chunk.set([112, 72, 89, 115], 4);

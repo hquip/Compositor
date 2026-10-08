@@ -8,6 +8,7 @@ import { smartHDRCases } from '../../desktop/tests/smart-hdr-cases.mjs';
 import { openEXRCases } from '../../desktop/tests/openexr-cases.mjs';
 import { advancedEXRCases } from '../../desktop/tests/exr-advanced-cases.mjs';
 import { professionalCases } from '../../desktop/tests/professional-cases.mjs';
+import { upstreamEnhancementCases } from '../../desktop/tests/upstream-enhancement-cases.mjs';
 import fs from 'node:fs/promises';
 let sharedPage;
 vectorCases(test, expect, () => sharedPage);
@@ -18,6 +19,7 @@ advancedEXRCases(test, expect, () => sharedPage);
 parityCases(test, expect, () => sharedPage);
 enhancementCases(test, expect, () => sharedPage);
 professionalCases(test, expect, () => sharedPage);
+upstreamEnhancementCases(test, expect, () => sharedPage);
 test.beforeEach(async ({ page }) => {
   sharedPage = page;
   page.on('pageerror', (error) => { throw error; });

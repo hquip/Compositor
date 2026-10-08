@@ -223,6 +223,11 @@ extension EditorSession {
         case "3:4": return 3 / 4
         case "16:9": return 16 / 9
         case "9:16": return 9 / 16
+        case "9:20": return 9 / 20
+        case "Custom":
+            guard cropCustomWidth.isFinite, cropCustomHeight.isFinite,
+                  (1...10000).contains(cropCustomWidth), (1...10000).contains(cropCustomHeight) else { return nil }
+            return cropCustomWidth / cropCustomHeight
         default: return nil
         }
     }

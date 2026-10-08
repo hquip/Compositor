@@ -33,6 +33,7 @@ import { installActions } from './actions.js';
 import { installPathEditor } from './path-editor.js';
 import { installHDR } from './hdr-workflows.js';
 import { installSmartObjects } from './smart-objects.js';
+import { selectionStrokeDialog } from './selection-stroke.js';
 
 export function installAdvanced(editor, api) {
   const menu = document.createElement('div'); menu.className = 'editor-menus';
@@ -50,6 +51,8 @@ export function installAdvanced(editor, api) {
   menus.Filters = ADJUSTMENT_KINDS.map((kind) => [`${kind}…`, `editable-filter:${kind}`]);
   menus.Select.push(['Refine selection…', 'refine-selection']); menus.Layer.push(['Refine mask…', 'refine-mask']);
   menus.Image.push(['Export PSD…', 'export-psd'], ['Export PSB…', 'export-psb']);
+  menus.Image.push(['Export WebP…', 'export-webp']);
+  menus.Select.push(['Stroke selection…', 'stroke-selection']);
   menus.Image.push(['Import high-precision image…', 'import-precision'], ['Color management and TIFF export…', 'color-export'], ['Soft proof…', 'soft-proof'], ['Load ICC profile…', 'load-icc']); menus.Layer.push(['Rasterize editable filters…', 'rasterize-filters']);
   menus.View.push(['Pen and touch…', 'pen-settings']);
   menus.Layer.push(['Substitute missing fonts…', 'substitute-fonts']);
@@ -76,6 +79,7 @@ export function installAdvanced(editor, api) {
   installTransforms(editor, api);
   editor.advancedCommand = async (command) => {
     if (!editor.manifest) return false;
+    if (command === 'stroke-selection') { await selectionStrokeDialog(editor); return true; }
     const [action, kind] = command.split(':');
     if (action === 'adjust' || action === 'edit-adjustment') {
       const before = editor.snapshot();

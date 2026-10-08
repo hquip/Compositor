@@ -2,6 +2,8 @@
 
 The Windows application remains under the repository MIT license. Its third-party components retain their own licenses.
 
+- **jSquash WebP 1.5.0** — Apache-2.0 JavaScript wrapper and libwebp WebAssembly codec derived from Squoosh; source: <https://github.com/jamsinclair/jSquash/tree/main/packages/webp>. Wrapper license in `jSquash-WebP-LICENSE.txt`; the codec's BSD license is in `libwebp-LICENSE.txt`.
+
 - **OpenEXR 3.4.16** — BSD-3-Clause, Academy Software Foundation contributors; source: <https://github.com/AcademySoftwareFoundation/openexr/tree/v3.4.16>. The WebAssembly module is built from the official library with Compositor's memory-stream wrapper. License in `OpenEXR-LICENSE.txt`; source pin, toolchain and binary hashes in `desktop/native/exr/runtime.json`; rebuild with `desktop/scripts/build-exr.ps1`.
 - **Imath 3.2.2** — BSD-3-Clause, OpenEXR math dependency; <https://github.com/AcademySoftwareFoundation/Imath/tree/v3.2.2>; license in `Imath-LICENSE.txt`.
 - **libdeflate 1.25** — MIT, Eric Biggers; <https://github.com/ebiggers/libdeflate>; statically included in the EXR runtime; license in `Libdeflate-LICENSE.txt`.

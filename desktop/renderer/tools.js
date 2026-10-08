@@ -13,6 +13,7 @@ import { renderText } from './text-layout.js';
 import { replaceTextContent } from './text-style.js';
 import { rasterTarget, mappedSelection, maskedChange, maskOutside } from './raster-space.js';
 import { penResponse } from './pen-input.js';
+import { cropAspect, constrainedCrop } from './crop-geometry.js';
 export { renderText } from './text-layout.js';
 export { mappedSelection, maskedChange } from './raster-space.js';
 function drawShape(style, width, height) {
@@ -161,7 +162,7 @@ export function installTools(editor, api) {
     if (['lasso', 'ellipse', 'crop'].includes(g.kind)) {
       g.end = point; g.points.push(point); const x = Math.max(0, Math.min(g.point.x, point.x)), y = Math.max(0, Math.min(g.point.y, point.y));
       g.rect = { x, y, width: Math.max(1, Math.min(editor.manifest.width, Math.max(g.point.x, point.x)) - x), height: Math.max(1, Math.min(editor.manifest.height, Math.max(g.point.y, point.y)) - y) };
-      if (g.kind === 'crop' && editor.toolSettings.cropRatio !== 'Free') { const [w, h] = editor.toolSettings.cropRatio.split(':').map(Number); g.rect.height = Math.min(editor.manifest.height - y, g.rect.width * h / w); }
+      if (g.kind === 'crop') g.rect = constrainedCrop(g.point, point, editor.manifest.width, editor.manifest.height, cropAspect(editor.toolSettings.cropRatio, editor.toolSettings.cropWidth, editor.toolSettings.cropHeight));
       editor.draw(); return;
     }
     originalMove(event);
@@ -299,8 +300,8 @@ export function installTools(editor, api) {
       editor.mutate('Clear Selection', () => { const layer = editor.active, source = editor.editMask ? rasterTarget(editor, layer, true).source : sourceFor(layer), image = copySurface(source), context = image.getContext('2d'), target = editor.editMask ? { ...layer, transform: layer.maskPlacement ?? layer.transform } : layer; context.globalCompositeOperation = editor.editMask ? 'source-over' : 'destination-out'; context.drawImage(mappedSelection(editor, target, image.width, image.height), 0, 0); if (editor.editMask) storeMask(editor, layer, image); else { editor.storePixels(layer, image); editor.rasterize(layer); } }); return true;
     }
     if (command === 'tool-settings') {
-      const fields = [n('tolerance', 'Wand tolerance', 0, 255, 32), b('contiguous', 'Contiguous', true), b('sampleAll', 'Sample all layers', true), b('aligned', 'Aligned clone', true), { key: 'mode', label: 'Retouch mode', options: ['Blur', 'Smudge', 'Liquify'], default: 'Blur' }, n('smoothing', 'Brush smoothing', 0, 100), n('feather', 'Selection feather', 0, 250), n('cornerRadius', 'Corner radius', 0, 500, 16), n('lineWidth', 'Line width', 1, 500, 4), { key: 'cropRatio', label: 'Crop ratio', options: ['Free', '1:1', '3:4', '4:3', '9:16', '16:9'], default: 'Free' }];
-      const value = await settingsDialog('Tool Settings', fields, editor.toolSettings); if (value) editor.toolSettings = value; return true;
+      const fields = [n('tolerance', 'Wand tolerance', 0, 255, 32), b('contiguous', 'Contiguous', true), b('sampleAll', 'Sample all layers', true), b('aligned', 'Aligned clone', true), { key: 'mode', label: 'Retouch mode', options: ['Blur', 'Smudge', 'Liquify'], default: 'Blur' }, n('smoothing', 'Brush smoothing', 0, 100), n('feather', 'Selection feather', 0, 250), n('cornerRadius', 'Corner radius', 0, 500, 16), n('lineWidth', 'Line width', 1, 500, 4), { key: 'cropRatio', label: 'Crop ratio', options: ['Free', '1:1', '3:4', '4:3', '9:16', '16:9', '9:20', 'Custom'], default: 'Free' }, n('cropWidth', 'Custom ratio width', 1, 10000, 9), n('cropHeight', 'Custom ratio height', 1, 10000, 20)];
+      const value = await settingsDialog('Tool Settings', fields, editor.toolSettings, null, { apply: (value) => { cropAspect(value.cropRatio, value.cropWidth, value.cropHeight); } }); if (value) editor.toolSettings = value; return true;
     }
     if (command === 'text' || command === 'edit-text') {
       const layer = command === 'edit-text' && editor.active?.text ? editor.active : null;

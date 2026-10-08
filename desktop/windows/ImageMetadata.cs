@@ -16,6 +16,7 @@ namespace Compositor.Windows
         private static void Write(byte[] b, int i, uint value) { b[i] = (byte)(value >> 24); b[i + 1] = (byte)(value >> 16); b[i + 2] = (byte)(value >> 8); b[i + 3] = (byte)value; }
         internal static byte[] WithResolution(byte[] bytes, string format, double resolution)
         {
+            if (format != "png" && format != "jpeg") return bytes;
             if (format == "png")
             {
                 var chunk = new byte[21]; Write(chunk, 0, 9); Encoding.ASCII.GetBytes("pHYs").CopyTo(chunk, 4); uint ppm = (uint)Math.Round(resolution / .0254); Write(chunk, 8, ppm); Write(chunk, 12, ppm); chunk[16] = 1; Write(chunk, 17, Crc(chunk, 4, 13));

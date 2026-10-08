@@ -36,7 +36,7 @@ nonisolated struct ProjectLayerRecord: Codable, Sendable {
     let id: UUID
     let name: String
     var isVisible: Bool
-    let transform: LayerTransform
+    var transform: LayerTransform
     let imageFile: String?
     var parentID: UUID? = nil
     var isGroup: Bool? = nil

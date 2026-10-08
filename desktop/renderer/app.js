@@ -7,6 +7,7 @@ import { icon, installIcons } from './icons.js';
 import { installAdvanced } from './advanced.js';
 import { importFiles } from './importers.js';
 import { jpegPreview } from './export-dialog.js';
+import { webpExport } from './webp-export.js';
 import { selectionTransform, transformSelection } from './layer-operations.js';
 import { installRecovery } from './recovery.js';
 import { saveLocalHistory } from './saved-history.js';
@@ -158,7 +159,7 @@ export async function runCommand(command) {
     if (await editor.advancedCommand?.(command)) return;
     switch (command) {
       case 'new':
-        if (editor.workspace || await mayReplaceDocument()) { $('#new-error').textContent = ''; $('#new-dialog').showModal(); $('#new-width').focus(); }
+        if (editor.workspace || await mayReplaceDocument()) { $('#new-error').textContent = ''; $('#new-dialog').showModal(); $('#new-width').focus(); $('#new-width').select(); }
         break;
       case 'open': {
         if (!editor.workspace && !await mayReplaceDocument()) break;
@@ -175,13 +176,13 @@ export async function runCommand(command) {
         editor.busy = true; synchronize(); status('Importing images…');
         await importFiles(editor, files); editor.busy = false; editor.update(); status(`Imported ${files.length} image${files.length === 1 ? '' : 's'}`); break;
       }
-      case 'export-png': case 'export-jpeg': {
+      case 'export-png': case 'export-jpeg': case 'export-webp': {
         if (!editor.manifest) break;
-        const format = command === 'export-jpeg' ? 'jpeg' : 'png';
+        const format = command === 'export-jpeg' ? 'jpeg' : command === 'export-webp' ? 'webp' : 'png';
         status('Rendering export…');
         let canvas = editor.composite(true);
         if (format === 'jpeg') { const opaque = surface(canvas.width, canvas.height); const ctx = opaque.getContext('2d'); ctx.fillStyle = '#fff'; ctx.fillRect(0, 0, canvas.width, canvas.height); ctx.drawImage(canvas, 0, 0); canvas = opaque; }
-        const data = format === 'jpeg' ? await jpegPreview(canvas) : canvas.toDataURL('image/png');
+        const data = format === 'jpeg' ? await jpegPreview(canvas) : format === 'webp' ? await webpExport(canvas) : canvas.toDataURL('image/png');
         if (!data) { status('Export canceled'); break; }
         if (data === 'data:,') throw new Error('Could not encode the export. Try a smaller canvas.');
         const result = await native(window.desktop.exportImage(data, format, editor.manifest.resolution ?? 72)); status(result ? 'Image exported' : 'Export canceled'); break;

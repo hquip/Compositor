@@ -68,7 +68,8 @@ namespace Compositor.Windows
             Item(file, "New Canvas…", "new", "Ctrl+N"); Item(file, "Open Project…", "open", "Ctrl+O"); Item(file, "Import Images…", "import", "Ctrl+I");
             recentMenu = new ToolStripMenuItem("Open Recent") { Tag = "Open Recent" }; file.DropDownItems.Add(recentMenu); RefreshRecent();
             file.DropDownItems.Add(new ToolStripSeparator()); Item(file, "Save", "save", "Ctrl+S"); Item(file, "Save As…", "save-as", "Ctrl+Shift+S");
-            Item(file, "Export PNG…", "export-png", "Ctrl+Shift+E"); Item(file, "Export JPEG…", "export-jpeg", "Ctrl+Alt+Shift+S");
+            Item(file, "Export PNG…", "export-png", "Ctrl+Shift+E"); Item(file, "Export JPEG…", "export-jpeg", "Ctrl+Alt+Shift+S"); Item(file, "Export WebP…", "export-webp");
+            Item(file, "New from Clipboard", "new-from-clipboard");
             file.DropDownItems.Add(new ToolStripSeparator()); var exit = new ToolStripMenuItem("Exit") { Tag = "Exit" }; exit.Click += (_, __) => Close(); file.DropDownItems.Add(exit);
             var edit = Group("&Edit"); Item(edit, "Undo", "undo", "Ctrl+Z"); Item(edit, "Redo", "redo", "Ctrl+Shift+Z");
             Item(edit, "Cut", "cut", "Ctrl+X"); Item(edit, "Copy", "copy", "Ctrl+C"); Item(edit, "Copy Merged", "copy-merged", "Ctrl+Shift+C"); Item(edit, "Paste", "paste", "Ctrl+V"); Item(edit, "Keyboard Shortcuts…", "keyboard-shortcuts");
@@ -327,9 +328,9 @@ namespace Compositor.Windows
                     var encoded = values[0] as string; var format = values[1] as string;
                     var resolution = values.Length > 2 ? Json.Number(values[2]) : 72;
                     if (resolution < 1 || resolution > 9600) throw new InvalidDataException("Invalid export resolution.");
-                    if ((format != "png" && format != "jpeg") || encoded == null || encoded.Length > 715827884 || !encoded.StartsWith("data:image/" + format + ";base64,", StringComparison.Ordinal))
+                    if (!new[] { "png", "jpeg", "webp" }.Contains(format) || encoded == null || encoded.Length > 715827884 || !encoded.StartsWith("data:image/" + format + ";base64,", StringComparison.Ordinal))
                         throw new InvalidDataException("Invalid export image.");
-                    var extension = format == "jpeg" ? "jpg" : "png"; var destination = TestPath("save");
+                    var extension = format == "jpeg" ? "jpg" : format; var destination = TestPath("save");
                     if (!test)
                     {
                         using var picker = new SaveFileDialog { Title = ui.Get("Export Image"), FileName = documentName + "." + extension, DefaultExt = extension, Filter = extension.ToUpperInvariant() + " " + ui.Get("Image") + "|*." + extension, AddExtension = true };
