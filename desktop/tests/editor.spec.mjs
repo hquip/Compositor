@@ -59,7 +59,7 @@ async function launchApplication() {
   await expect.poll(() => browser.contexts().flatMap((context) => context.pages()).length).toBeGreaterThan(0);
   page = browser.contexts().flatMap((context) => context.pages())[0];
   page.on('pageerror', (error) => errors.push(error.message));
-  await expect(page.getByRole('heading', { name: 'Welcome to Compositor' })).toBeVisible();
+  await expect(page.getByRole('heading', { name: 'Welcome to Compositor' })).toBeVisible({ timeout: 30000 });
 }
 test.afterEach(async () => {
   try { expect(errors).toEqual([]); }

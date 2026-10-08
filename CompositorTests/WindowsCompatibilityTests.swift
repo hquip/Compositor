@@ -18,8 +18,8 @@ struct WindowsCompatibilityTests {
         let raster = try await ImageExporter.shared.render(snapshot)
         #expect(raster.image.width == snapshot.manifest.width)
         #expect(raster.image.height == snapshot.manifest.height)
-        let output = fixture.deletingLastPathComponent().deletingLastPathComponent().deletingLastPathComponent()
-            .appendingPathComponent("CrossPlatformResults", isDirectory: true)
+        let output = FileManager.default.temporaryDirectory
+            .appendingPathComponent("Compositor-CrossPlatformResults", isDirectory: true)
         try FileManager.default.createDirectory(at: output, withIntermediateDirectories: true)
         let saved = output.appendingPathComponent("MacRoundTrip.comp", isDirectory: true)
         try await ProjectStore.shared.save(snapshot, to: saved)

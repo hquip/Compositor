@@ -82,6 +82,18 @@ jobs:
           -only-testing:CompositorTests/FloatingPanelTests
           -only-testing:CompositorTests/SliderSnapTests
 
+      - name: Collect sandboxed compatibility results
+        if: always()
+        run: |
+          container="$HOME/Library/Containers/com.wonderassembly.compositor/Data"
+          if [ -d "$container" ]; then
+            source=$(find "$container" -type d -name Compositor-CrossPlatformResults -print -quit)
+            if [ -n "$source" ]; then
+              mkdir -p CrossPlatformResults
+              cp -R "$source/." CrossPlatformResults/
+            fi
+          fi
+
       - name: Print failed test details
         if: failure()
         run: |
