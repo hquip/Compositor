@@ -197,13 +197,14 @@ function validateText(text, version) {
   range(text, 'fontSize', 1, 2000); range(text, 'tracking', -100, 1000); range(text, 'leading', 0, 5000);
   requireCondition(['Left', 'Center', 'Right'].includes(text.alignment), 'Invalid text alignment.');
   if (text.boxSize != null) requireCondition(Array.isArray(text.boxSize) && text.boxSize.length === 2 && text.boxSize.every((value) => Number.isFinite(value) && value >= 16 && value <= MAX_SIDE) && text.boxSize[0] * text.boxSize[1] <= MAX_SURFACE_PIXELS, 'Invalid paragraph bounds.');
-  for (const key of ['colorRuns', 'fontRuns']) {
+  for (const key of ['colorRuns', 'fontRuns', 'sizeRuns']) {
     if (text[key] == null) continue;
-    requireCondition(version >= (key === 'colorRuns' ? 10 : 11) && Array.isArray(text[key]) && text[key].length > 0, 'Invalid text run list or version.');
+    requireCondition(version >= (key === 'colorRuns' ? 10 : key === 'fontRuns' ? 11 : 17) && Array.isArray(text[key]) && text[key].length > 0, 'Invalid text run list or version.');
     let end = 0;
     for (const run of text[key]) {
       requireCondition(run && Number.isInteger(run.location) && Number.isInteger(run.length) && run.location >= end && run.length > 0 && run.location + run.length <= text.content.length, 'Invalid text run range.'); end = run.location + run.length;
       if (key === 'fontRuns') requireCondition(typeof run.fontName === 'string' && run.fontName.length > 0 && run.fontName.length <= 200 && !/[\r\n\u0085\u2028\u2029]/.test(run.fontName), 'Invalid text run font.');
+      else if (key === 'sizeRuns') range(run, 'fontSize', 1, 2000);
       else for (const channel of ['red', 'green', 'blue']) range(run, channel, 0, 1);
     }
   }

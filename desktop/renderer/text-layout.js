@@ -12,7 +12,7 @@ function configure(context, font, style, direction = 'ltr') {
 export function layoutText(input) {
   const style = normalizedTextStyle({ fontName: 'Arial', fontSize: 72, tracking: 0, leading: 0, red: 0, green: 0, blue: 0, alignment: 'Left', ...input }), text = style.content;
   if (text.length > 100000 || !Number.isFinite(style.fontSize) || style.fontSize < 1 || style.fontSize > 2000) throw new Error('The text layer exceeds the supported dimensions.');
-  const context = surface(1, 1).getContext('2d'), fonts = styleUnits(style, 'fontRuns'), colors = styleUnits(style, 'colorRuns'), leading = style.leading || style.fontSize * 1.2;
+  const context = surface(1, 1).getContext('2d'), fonts = styleUnits(style, 'fontRuns'), colors = styleUnits(style, 'colorRuns'), sizes = styleUnits(style, 'sizeRuns'), leading = style.leading || Math.max(style.fontSize, ...(style.sizeRuns ?? []).map((run) => run.fontSize)) * 1.2;
   const fixed = style.boxSize, available = fixed ? Math.max(1, fixed[0] - 24) : Infinity, lines = [];
   let paragraphStart = 0;
   const maximumLines = fixed ? Math.max(1, Math.ceil(Math.max(1, fixed[1] - 24) / leading) + 1) : Infinity;
@@ -26,10 +26,10 @@ export function layoutText(input) {
       let low = 0, high = clusters.length; while (low < high) { const middle = (low + high) >> 1; if (clusters[middle].start < start) low = middle + 1; else high = middle; }
       for (let index = low; index < clusters.length && clusters[index].start < end; index++) {
         const cluster = clusters[index];
-        const font = fonts[paragraphStart + cluster.start]?.fontName ?? style.fontName, level = embedding.levels[cluster.start] ?? 0;
-        if (!run || run.font !== font || run.level !== level) { run = { start: cluster.start, end: cluster.end, font, level }; runs.push(run); } else run.end = cluster.end;
+        const font = fonts[paragraphStart + cluster.start]?.fontName ?? style.fontName, fontSize = sizes[paragraphStart + cluster.start]?.fontSize ?? style.fontSize, level = embedding.levels[cluster.start] ?? 0;
+        if (!run || run.font !== font || run.fontSize !== fontSize || run.level !== level) { run = { start: cluster.start, end: cluster.end, font, fontSize, level }; runs.push(run); } else run.end = cluster.end;
       }
-      for (const item of runs) { item.text = paragraph.slice(item.start, item.end); item.direction = item.level % 2 ? 'rtl' : 'ltr'; configure(context, item.font, style, item.direction); const metric = context.measureText(item.text); item.width = metric.width + (!('letterSpacing' in context) ? (style.tracking ?? 0) * [...graphemes.segment(item.text)].length : 0); item.descent = metric.fontBoundingBoxDescent ?? style.fontSize * .22; }
+      for (const item of runs) { item.text = paragraph.slice(item.start, item.end); item.direction = item.level % 2 ? 'rtl' : 'ltr'; configure(context, item.font, { ...style, fontSize: item.fontSize }, item.direction); const metric = context.measureText(item.text); item.width = metric.width + (!('letterSpacing' in context) ? (style.tracking ?? 0) * [...graphemes.segment(item.text)].length : 0); item.descent = metric.fontBoundingBoxDescent ?? item.fontSize * .22; }
       const order = Array.from({ length: end - start }, (_, index) => index + start);
       for (const [a, b] of bidi.getReorderSegments(paragraph, embedding, start, end - 1)) for (let i = a, j = b; i < j; i++, j--) [order[i - start], order[j - start]] = [order[j - start], order[i - start]];
       const visual = [], seen = new Set(); for (const index of order) { const item = runs.find((run) => index >= run.start && index < run.end); if (item && !seen.has(item)) { seen.add(item); visual.push(item); } }
@@ -71,7 +71,7 @@ function colorSections(layout, run) {
 }
 function colorRectangles(run, style, sections) {
   const probe = document.createElement('span'); probe.dataset.noTranslate = ''; probe.setAttribute('aria-hidden', 'true');
-  Object.assign(probe.style, { position: 'fixed', left: '-100000px', top: '0', visibility: 'hidden', whiteSpace: 'pre', font: fontString(run.font, style.fontSize), fontKerning: 'normal', letterSpacing: `${style.tracking ?? 0}px`, direction: run.direction, unicodeBidi: 'isolate' });
+  Object.assign(probe.style, { position: 'fixed', left: '-100000px', top: '0', visibility: 'hidden', whiteSpace: 'pre', font: fontString(run.font, run.fontSize), fontKerning: 'normal', letterSpacing: `${style.tracking ?? 0}px`, direction: run.direction, unicodeBidi: 'isolate' });
   const node = document.createTextNode(run.text); probe.append(node); document.body.append(probe); const bounds = probe.getBoundingClientRect();
   try { return sections.map((section) => { const range = document.createRange(); range.setStart(node, section.start); range.setEnd(node, section.end); return [...range.getClientRects()].map((rect) => ({ x: rect.left - bounds.left, width: rect.width })); }); }
   finally { probe.remove(); }
@@ -81,13 +81,13 @@ export function renderText(input) {
   context.save(); context.beginPath(); context.rect(12, 12, Math.max(1, width - 24), Math.max(1, height - 24)); context.clip();
   for (const line of layout.lines) for (const run of line.runs) {
     const draw = (ctx, x, baseline, color) => {
-      configure(ctx, run.font, style, run.direction); ctx.fillStyle = colorCSS(color);
+      configure(ctx, run.font, { ...style, fontSize: run.fontSize }, run.direction); ctx.fillStyle = colorCSS(color);
       if ('letterSpacing' in ctx || !style.tracking) { ctx.fillText(run.text, x + (run.direction === 'rtl' ? run.width : 0), baseline); return; }
       // Keep contextual glyph shapes on engines without Canvas letter spacing.
-      const clusters = [...graphemes.segment(run.text)].map((item) => ({ start: item.index, end: item.index + item.segment.length })), clips = colorRectangles(run, { ...style, tracking: 0 }, clusters), naturalWidth = ctx.measureText(run.text).width;
+      const clusters = [...graphemes.segment(run.text)].map((item) => ({ start: item.index, end: item.index + item.segment.length })), clips = colorRectangles(run, { ...style, fontSize: run.fontSize, tracking: 0 }, clusters), naturalWidth = ctx.measureText(run.text).width;
       for (let index = 0; index < clusters.length; index++) {
         const shift = style.tracking * (run.direction === 'rtl' ? clusters.length - 1 - index : index);
-        ctx.save(); ctx.beginPath(); for (const clip of clips[index]) ctx.rect(x + clip.x + shift, baseline - style.fontSize * 2, clip.width, style.fontSize * 4); ctx.clip();
+        ctx.save(); ctx.beginPath(); for (const clip of clips[index]) ctx.rect(x + clip.x + shift, baseline - run.fontSize * 2, clip.width, run.fontSize * 4); ctx.clip();
         ctx.fillText(run.text, x + (run.direction === 'rtl' ? naturalWidth : 0) + shift, baseline); ctx.restore();
       }
     };

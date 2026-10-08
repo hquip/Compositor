@@ -98,15 +98,15 @@ export function parsePhotoshop(encoded, budget = MAX_PIXELS) {
           const style = source.text.style ?? {}, paragraph = source.text.paragraphStyle ?? {};
           layer.text = { content: source.text.text, fontName: style.font?.name ?? 'Arial', fontSize: style.fontSize ?? 72, ...color(style.fillColor),
             alignment: { left: 'Left', center: 'Center', right: 'Right' }[paragraph.justification] ?? 'Left', tracking: (style.tracking ?? 0) / 1000 * (style.fontSize ?? 72), leading: style.leading ?? 0 };
-          const colorRuns = [], fontRuns = []; let position = 0, mixedSize = false;
+          const colorRuns = [], fontRuns = [], sizeRuns = []; let position = 0;
           for (const run of source.text.styleRuns ?? []) {
             const length = Math.min(run.length, layer.text.content.length - position), current = run.style ?? {};
-            if (current.fontSize != null && Math.abs(current.fontSize - layer.text.fontSize) > .01) mixedSize = true;
+            if (length > 0 && current.fontSize != null && Math.abs(current.fontSize - layer.text.fontSize) > .01) sizeRuns.push({ location: position, length, fontSize: current.fontSize });
             if (length > 0 && current.fillColor) { const value = color(current.fillColor); if (['red', 'green', 'blue'].some((key) => Math.abs(value[key] - layer.text[key]) > .0001)) colorRuns.push({ location: position, length, ...value }); }
             if (length > 0 && current.font?.name && current.font.name !== layer.text.fontName) fontRuns.push({ location: position, length, fontName: current.font.name }); position += run.length;
           }
           if (colorRuns.length) layer.text.colorRuns = colorRuns; if (fontRuns.length) layer.text.fontRuns = fontRuns;
-          if (mixedSize && image) { delete layer.text; report.push(`${layer.name}: mixed text sizes use the saved pixels.`); }
+          if (sizeRuns.length) layer.text.sizeRuns = sizeRuns;
           if (!image) { image = renderText(layer.text); layer.transform.size = [image.width, image.height]; }
         }
         if (image) { if (used + image.width * image.height > budget) throw new Error('The Photoshop document still exceeds the pixel budget after cropping.'); layer.imageFile = `${layer.id}.png`; assets[layer.imageFile] = image.toDataURL('image/png').split(',')[1]; used += image.width * image.height; }
@@ -125,6 +125,19 @@ export function parsePhotoshop(encoded, budget = MAX_PIXELS) {
           layer.maskPlacement = { ...createLayer('', canvas.width, canvas.height).transform, origin: [cropped?.crop.left ?? source.mask.left ?? layer.transform.origin[0], cropped?.crop.top ?? source.mask.top ?? layer.transform.origin[1]] };
           assets[layer.maskFile] = encodeGray(canvas); used += canvas.width * canvas.height;
         }
+      }
+      if (source.placedLayer && layer.imageFile) {
+        const linked = psd.linkedFiles?.find((file) => file.id === source.placedLayer.id), data = linked?.data;
+        if (data && data[0] === 137 && data[1] === 80) {
+          const view = new DataView(data.buffer, data.byteOffset, data.byteLength), contentWidth = view.getUint32(16), contentHeight = view.getUint32(20);
+          if (data[24] === 8 && contentWidth * contentHeight <= MAX_PIXELS) {
+            delete layer.text; delete layer.shape; layer.filterSourceFile = `${layer.id}.source.png`; let encodedSource = ''; for (let at = 0; at < data.length; at += 32768) encodedSource += String.fromCharCode(...data.subarray(at, at + 32768)); assets[layer.filterSourceFile] = btoa(encodedSource);
+            layer.filters = [{ id: crypto.randomUUID().toUpperCase(), enabled: false, adjustment: adjustmentDefaults('Exposure') }];
+            layer.smartObject = { id: crypto.randomUUID().toUpperCase(), width: contentWidth, height: contentHeight, baseTransform: structuredClone(layer.transform) };
+            const points = source.placedLayer.transform;
+            if (points?.length === 8) layer.workflow = { ...layer.workflow, smartCorners: Array.from({ length: 4 }, (_, i) => [(points[i * 2] - layer.transform.origin[0]) / layer.transform.size[0], (points[i * 2 + 1] - layer.transform.origin[1]) / layer.transform.size[1]]) };
+          }
+        } else report.push(`${layer.name}: embedded Photoshop/vector content remains in the retained original file.`);
       }
       manifest.layers.push(layer); if (source.children) visit(source.children, layer.id);
     }

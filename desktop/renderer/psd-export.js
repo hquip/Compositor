@@ -73,14 +73,14 @@ export function buildPhotoshop(editor, { flatten = false, editableText = true } 
       if (layer.smartObject && !layer.hdrSourceFile && !layer.effects) {
         const filtered = layer.filters?.some((filter) => filter.enabled), id = (filtered ? layer.id : layer.smartObject.id).toLowerCase(), encoded = editor.assets[filtered ? layer.imageFile : layer.filterSourceFile];
         if (!document.linkedFiles.some((item) => item.id === id)) document.linkedFiles.push({ id, name: layer.name + '.png', type: 'PNGf', data: Uint8Array.from(atob(encoded), (c) => c.charCodeAt(0)) });
-        const corners = [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }].map((p) => documentPoint(p, layer.transform));
+        const corners = (layer.workflow?.smartCorners?.map(([x, y]) => ({ x, y })) ?? [{ x: 0, y: 0 }, { x: 1, y: 0 }, { x: 1, y: 1 }, { x: 0, y: 1 }]).map((p) => documentPoint(p, layer.transform));
         result.placedLayer = { id, type: 'raster', width: layer.smartObject.width, height: layer.smartObject.height, transform: corners.flatMap((p) => [p.x, p.y]) };
       }
       if (editableText && layer.text && !layer.effects && !layer.filters) {
         const t = layer.text;
         result.text = { text: t.content, transform: pixelMatrix(layer.transform, source.width, source.height), orientation: 'horizontal', shapeType: t.boxSize ? 'box' : 'point', pointBase: [12, 12], boxBounds: t.boxSize ? [12, 12, t.boxSize[0] - 12, t.boxSize[1] - 12] : undefined,
           style: { font: { name: t.fontName }, fontSize: t.fontSize, fillColor: rgb(t), tracking: (t.tracking ?? 0) / t.fontSize * 1000, leading: t.leading || t.fontSize * 1.2, autoLeading: !t.leading },
-          styleRuns: textSpans(t).map((part) => ({ length: part.text.length, style: { font: { name: part.fontName }, fillColor: rgb(part) } })), paragraphStyle: { justification: t.alignment.toLowerCase() } };
+          styleRuns: textSpans(t).map((part) => ({ length: part.text.length, style: { font: { name: part.fontName }, fontSize: part.fontSize, fillColor: rgb(part) } })), paragraphStyle: { justification: t.alignment.toLowerCase() } };
       }
     }
     const mask = editor.masks.get(layer.id);

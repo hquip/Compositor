@@ -40,6 +40,7 @@ import { installChannelWorkflows } from './channel-workflows.js';
 import { installLayoutWorkflows } from './layout-workflows.js';
 import { installInterchangeWorkflows } from './interchange-workflows.js';
 import { installExtensionWorkflows } from './extension-workflows.js';
+import { installUpdateNotes } from './update-notes.js';
 
 export function installAdvanced(editor, api) {
   const menu = document.createElement('div'); menu.className = 'editor-menus';
@@ -67,6 +68,7 @@ export function installAdvanced(editor, api) {
   menus.Image.push(['Import OpenRaster…', 'import-ora'], ['Export OpenRaster…', 'export-ora']);
   menus.Image.push(['Export original Photoshop…', 'export-photoshop-original']);
   menus.Extensions=[['Install image plugin…','install-image-plugin'],['Run image plugin…','run-image-plugin'],['Export to external filter…','external-filter-export'],['Import external filter result…','external-filter-import']];
+  menus.View.push(['Check for updates…', 'check-updates']);
   menus.Image.push(['Import high-precision image…', 'import-precision'], ['Color management and TIFF export…', 'color-export'], ['Soft proof…', 'soft-proof'], ['Load ICC profile…', 'load-icc']); menus.Layer.push(['Rasterize editable filters…', 'rasterize-filters']);
   menus.View.push(['Pen and touch…', 'pen-settings']);
   menus.Layer.push(['Substitute missing fonts…', 'substitute-fonts']);
@@ -224,5 +226,6 @@ export function installAdvanced(editor, api) {
   installLayoutWorkflows(editor, api);
   installInterchangeWorkflows(editor, api);
   installExtensionWorkflows(editor, api);
+  installUpdateNotes(editor, api);
   installShortcuts(editor, api);
 }

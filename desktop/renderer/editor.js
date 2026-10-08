@@ -9,6 +9,7 @@ import { storeMask } from './masks.js';
 import { penResponse } from './pen-input.js';
 import { filterAssetNames } from './filter-mix.js';
 import { composeHDRCanvas } from './hdr-layer.js';
+import { warpImage } from './transforms.js';
 
 export class Editor {
   constructor(viewport, display, overlay, onChange) {
@@ -119,6 +120,10 @@ export class Editor {
   storePixels(layer, canvas, { filterCache = false, vectorCache = false, channelCache = false } = {}) {
     if (layer.workflow?.channelFile && !channelCache) throw new Error('Edit this layer through Channels to preserve its authoritative color samples.');
     if (!filterCache && (layer.smartObject || layer.hdrSourceFile)) throw new Error('Edit the embedded content or rasterize this protected layer before painting its pixels.');
+    if (filterCache && layer.workflow?.smartCorners && layer.smartObject && !layer.hdrSourceFile) {
+      const points = layer.workflow.smartCorners.map(([x, y]) => ({ x: x * canvas.width, y: y * canvas.height }));
+      const warped = warpImage(canvas, points), cache = surface(canvas.width, canvas.height); cache.getContext('2d').drawImage(warped.image, ...warped.origin); canvas = cache;
+    }
     if (!vectorCache) delete layer.vectorPath;
     if (!filterCache && layer.filterSourceFile && atob(this.assets[layer.filterSourceFile].slice(0, 44)).charCodeAt(24) === 16) throw new Error('Rasterize this high-precision layer before changing its pixels, or paint on a new layer.');
     const data = canvas.toDataURL('image/png');

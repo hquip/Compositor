@@ -44,6 +44,7 @@ nonisolated enum AdjustmentKind: String, Codable, CaseIterable, Sendable {
 }
 nonisolated struct LayerAdjustment: Codable, Equatable, Sendable {
     var kind: AdjustmentKind
+    var workflowLookup: WorkflowLookup? = nil
     var hue: Double = 0
     var saturation: Double = 0
     var lightness: Double = 0
@@ -142,6 +143,7 @@ nonisolated struct LayerAdjustment: Codable, Equatable, Sendable {
     /// `region` is the part of the document `image` covers (the whole image at one unit per pixel when
     /// omitted), so Grain's pattern stays fixed in the document however the canvas splits its drawing.
     func apply(_ image: CGImage, region: CGRect? = nil, scale: CGFloat = 1) throws -> CGImage {
+        if let lookup = workflowLookup { return try lookup.apply(image) }
         switch kind {
         case .hsv:
             return try HueSaturationFilter.run(HueSaturationJob(image: image,

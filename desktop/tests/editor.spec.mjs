@@ -1,3 +1,4 @@
+import { FORMAT_VERSION } from '../renderer/core.js';
 import { test, expect, chromium } from '@playwright/test';
 import { spawn } from 'node:child_process';
 import net from 'node:net';
@@ -106,7 +107,7 @@ test('native HDR export and smart/HDR project saving retain the original float s
   const exportTarget = path.join(directory, 'Float32.tiff'); await dialogs({ save: exportTarget }); await page.evaluate(async () => (await import('./app.js')).runCommand('export-hdr'));
   const codec = (await import('../lib/float-tiff.cjs')).default; expect([...codec.decodeFloatTIFF(new Uint8Array(await fs.readFile(exportTarget))).data]).toEqual([4, .25, -.125, 1, 8, 1, 2, .5]);
   const projectTarget = path.join(directory, 'SmartHDR.comp'); await dialogs({ save: projectTarget }); await page.evaluate(async () => (await import('./app.js')).runCommand('save'));
-  const snapshot = await store.readProject(projectTarget), layer = snapshot.manifest.layers.at(-1); expect(snapshot.manifest.version).toBe(16); expect(layer.smartObject.width).toBe(2); expect(codec.decodeFloatTIFF(Buffer.from(snapshot.assets[layer.hdrSourceFile], 'base64')).data[0]).toBe(4);
+  const snapshot = await store.readProject(projectTarget), layer = snapshot.manifest.layers.at(-1); expect(snapshot.manifest.version).toBe(FORMAT_VERSION); expect(layer.smartObject.width).toBe(2); expect(codec.decodeFloatTIFF(Buffer.from(snapshot.assets[layer.hdrSourceFile], 'base64')).data[0]).toBe(4);
 });
 
 test('native OpenEXR image picker and export save dialog retain floating highlights and alpha', async () => {
@@ -201,7 +202,7 @@ test('native project save and reopen preserve layers, transformations, pixels, a
   const target = path.join(directory, 'Windows.comp'); await dialogs({ save: target });
   await page.getByRole('button', { name: 'Save', exact: true }).click(); await expect(page.locator('#status-message')).toHaveText('Project saved');
   const snapshot = await store.readProject(target);
-  expect(snapshot.manifest.version).toBe(16); expect(snapshot.manifest.layers).toHaveLength(2);
+  expect(snapshot.manifest.version).toBe(FORMAT_VERSION); expect(snapshot.manifest.layers).toHaveLength(2);
   expect(snapshot.manifest.layers[1].transform.origin).toEqual([40, 30]); expect(snapshot.manifest.layers[1].opacity).toBe(0.5);
   await expect(page.locator('#document-dirty')).toHaveText('');
   await page.getByRole('button', { name: 'New', exact: true }).click();

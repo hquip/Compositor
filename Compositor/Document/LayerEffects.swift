@@ -400,7 +400,8 @@ nonisolated enum LayerEffectsRenderer {
 
     /// `image` with `effects` around it, reusing the last result for the same pixels, mask and settings. Nil when
     /// there is nothing to draw or the effects can't be made, so the caller draws the layer as it is.
-    static func cached(_ image: CGImage, mask: CGImage?, effects: LayerEffects?) -> (image: CGImage, inset: CGFloat)? {
+    static func cached(_ image: CGImage, mask: CGImage?, effects: LayerEffects?, fill: Double = 1) -> (image: CGImage, inset: CGFloat)? {
+        if fill != 1 { return try? render(image, mask: mask, effects: effects ?? LayerEffects(), fill: fill) }
         guard let effects = effects?.visible, !effects.isEmpty, effects.isValid else { return nil }
         return try? cache.result(image: image, mask: mask, effects: effects) {
             try render(image, mask: mask, effects: effects)
@@ -433,7 +434,8 @@ nonisolated enum LayerEffectsRenderer {
 
     /// `image` with `effects` around it. `mask` (the layer's own mask, in its pixel grid) hides part of the layer
     /// before the effects are made, so they follow the shape that is actually shown, as in Photoshop.
-    static func render(_ image: CGImage, mask: CGImage?, effects: LayerEffects) throws -> (image: CGImage, inset: CGFloat) {
+    static func render(_ image: CGImage, mask: CGImage?, effects: LayerEffects, fill: Double = 1) throws -> (image: CGImage, inset: CGFloat) {
+        guard fill.isFinite, (0...1).contains(fill) else { throw ProjectError.invalid }
         let effects = effects.visible
         guard effects.isValid else { throw ProjectError.invalid }
         let inset = margin(for: effects)
@@ -443,7 +445,7 @@ nonisolated enum LayerEffectsRenderer {
         let full = CGRect(x: 0, y: 0, width: CGFloat(width), height: CGFloat(height))
         // The layer as it is shown: its pixels through its mask.
         let shown = try masked(image, mask: mask)
-        if let metal = MetalLayerEffects.shared {
+        if fill == 1, let metal = MetalLayerEffects.shared {
             // The pixels with room around them, then the stroke and shadow drawn on the GPU.
             let padded = try BrushRaster.context(width: width, height: height, mask: false)
             BrushRaster.draw(shown, in: placed, mask: false, context: padded)
@@ -475,6 +477,7 @@ nonisolated enum LayerEffectsRenderer {
         context.translateBy(x: placed.minX, y: placed.maxY)
         context.scaleBy(x: 1, y: -1)
         context.setBlendMode(.normal)
+        context.setAlpha(CGFloat(fill))
         context.draw(shown, in: CGRect(origin: .zero, size: placed.size))
         context.restoreGState()
         // Over the pixels: a flat color, then a shadow inside the layer's own edges.

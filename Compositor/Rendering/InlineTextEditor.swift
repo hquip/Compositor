@@ -198,6 +198,7 @@ final class InlineTextEditor: NSView, NSTextViewDelegate {
                     let font = NSFont(name: run.fontName, size: style.fontSize) ?? NSFont.systemFont(ofSize: style.fontSize)
                     textView.textStorage?.addAttribute(.font, value: font, range: NSRange(location: run.location, length: run.length))
                 }
+                if let storage = textView.textStorage { EditorSession.applySizeRuns(style, to: storage) }
                 textView.setSelectedRange(NSRange(location: min(selection.location, textView.string.utf16.count),
                     length: min(selection.length, max(0, textView.string.utf16.count - selection.location))))
             }
@@ -230,11 +231,12 @@ final class InlineTextEditor: NSView, NSTextViewDelegate {
         if let pendingStyle, pendingStyle.content == textView.string {
             draft.style.colorRuns = pendingStyle.colorRuns
             draft.style.fontRuns = pendingStyle.fontRuns
+            draft.style.sizeRuns = pendingStyle.sizeRuns
         }
         pendingStyle = nil
         draft.style.content = textView.string
         // Text NSTextView changed without saying how can't keep its colors and faces letter for letter.
-        if !draft.style.isValid { draft.style.colorRuns = nil; draft.style.fontRuns = nil }
+        if !draft.style.isValid { draft.style.colorRuns = nil; draft.style.fontRuns = nil; draft.style.sizeRuns = nil }
         draft.selection = textView.selectedRange()
         shownStyle = draft.style
         session.textDraft = draft

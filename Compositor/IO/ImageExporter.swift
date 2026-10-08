@@ -41,7 +41,7 @@ actor ImageExporter {
                 guard let layer = records[id], let image = snapshot.images[id]?.image else { return }
                 let opacity = layer.effectiveOpacity(in: records)
                 let mask = snapshot.mask(for: layer).flatMap { $0.clipImage(placement: $0.placement, over: layer.transform, width: image.width, height: image.height) }
-                let effects = LayerEffectsRenderer.cached(image, mask: mask, effects: layer.effects)
+                let effects = LayerEffectsRenderer.cached(image, mask: mask, effects: layer.effects, fill: layer.fillOpacity ?? 1)
                 func drawLayer(_ mode: LayerBlendMode, _ into: CGContext) {
                     if let effects {
                         let grown = LayerEffectsRenderer.placed(layer.transform, image: effects.image, inset: effects.inset)
@@ -57,7 +57,7 @@ actor ImageExporter {
                 if SeparableBlend.needsSurface(mode), SeparableBlend.draw(mode, in: target, body: { drawLayer(.normal, $0) }) { return }
                 drawLayer(mode, target)
             }
-            live.adjustment = { records[$0]?.adjustment }
+            live.adjustment = { id in WorkflowRendering.adjustment(records[id]?.workflow, resources: snapshot.workflowSources) ?? records[id]?.adjustment }
             live.adjustmentOpacity = { records[$0]?.effectiveOpacity(in: records) ?? 1 }
             live.adjustmentClip = { id, ctx in
                 if let layer = records[id], let image = snapshot.mask(for: layer)?.enabledImage {

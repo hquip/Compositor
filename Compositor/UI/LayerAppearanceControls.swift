@@ -35,6 +35,16 @@ struct LayerAppearanceControls: View {
                     Text("%").font(.caption)
                 }
             }
+            HStack {
+                Text("Fill").font(.caption)
+                Slider(value: Binding(get: { session.activeLayer?.fillOpacity ?? 1 }, set: { value in
+                    guard let index = session.document?.layers.firstIndex(where: { $0.id == session.activeLayerID }) else { return }
+                    session.document?.layers[index].fillOpacity = value
+                }), in: 0...1, onEditingChanged: { editing in
+                    if editing { session.beginEdit("Layer Fill") } else { session.endEdit() }
+                })
+                Text("\(Int((session.activeLayer?.fillOpacity ?? 1) * 100))%").frame(width: 36)
+            }
             Button("Editable filters…") { showsFilters = true }.disabled(session.activeLayer?.asset == nil || session.activeLayer?.isGroup == true || session.isMaskSelected)
         }.padding(12).disabled(!session.canEditOpacity)
             .sheet(isPresented: $showsFilters) { EditableFiltersSheet(session: session) }

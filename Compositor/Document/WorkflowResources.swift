@@ -36,7 +36,7 @@ nonisolated struct WorkflowResource: Codable, Equatable, Sendable {
         let bytes = [UInt8](data)
         if kind == "icc" { guard data.count >= 132, data.count <= 16 * 1024 * 1024, String(bytes: bytes[36..<40], encoding: .ascii) == "acsp" else { throw ProjectError.invalid } }
         if kind == "photoshop" { guard data.count >= 26, String(bytes: bytes[0..<4], encoding: .ascii) == "8BPS" else { throw ProjectError.invalid } }
-        if kind == "lookup", data.count > 32 * 1024 * 1024 { throw ProjectError.tooLarge }
+        if kind == "lookup" { _ = try WorkflowLookup.parse(data) }
         guard kind == "channels" else { return 0 }
         guard data.count >= 32, String(bytes: bytes[0..<8], encoding: .ascii) == "CCHN0001" else { throw ProjectError.invalid }
         func u32(_ at: Int) -> UInt32 { UInt32(bytes[at]) | UInt32(bytes[at + 1]) << 8 | UInt32(bytes[at + 2]) << 16 | UInt32(bytes[at + 3]) << 24 }

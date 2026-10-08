@@ -1,4 +1,28 @@
 export function fullWorkflowCases(test, expect, resolvePage) {
+  test('full workflows: mixed Photoshop text sizes remain editable and survive another Photoshop export', async () => {
+    const page = resolvePage();
+    const result = await page.evaluate(async () => {
+      const { editor:e }=await import('./app.js'),{writePsd,readPsd}=await import('./vendor/psd.js'),{parsePhotoshop}=await import('./photoshop.js'),{buildPhotoshop,binaryBase64}=await import('./psd-export.js'),{renderText,layoutText}=await import('./text-layout.js');
+      const text={content:'Small BIG 中文',fontName:'ArialMT',fontSize:18,red:0,green:0,blue:0,alignment:'Left',tracking:0,leading:0,sizeRuns:[{location:6,length:3,fontSize:40}]},image=renderText(text);
+      const psd={width:300,height:100,children:[{name:'Mixed text',imageData:image.getContext('2d').getImageData(0,0,image.width,image.height),text:{text:text.content,style:{font:{name:'ArialMT'},fontSize:18,fillColor:{r:0,g:0,b:0}},styleRuns:[{length:6,style:{fontSize:18}},{length:3,style:{fontSize:40}},{length:3,style:{fontSize:18}}],paragraphStyle:{justification:'left'}}}]};
+      const parsed=parsePhotoshop(binaryBase64(new Uint8Array(writePsd(psd,{generateThumbnail:false}))),1000000);await e.install(parsed.snapshot);const layer=e.manifest.layers.find(l=>l.text),sizes=layer.text.sizeRuns,layout=layoutText(layer.text),roundTrip=readPsd(writePsd(buildPhotoshop(e),{generateThumbnail:false}),{useImageData:true});return{sizes,rendered:layout.lines[0].runs.map(r=>r.fontSize),exported:roundTrip.children[0].text.styleRuns.map(r=>r.style.fontSize)};
+    });
+    expect(result.sizes).toContainEqual({location:6,length:3,fontSize:40});expect(result.rendered).toContain(40);expect(result.exported).toContain(40);
+  });
+
+  test('full workflows: PSD artboards become independent projects with translated layers and masks', async () => {
+    const page = resolvePage();
+    const result = await page.evaluate(async () => {
+      const { writePsd } = await import('./vendor/psd.js'), { parsePhotoshopArtboards } = await import('./photoshop-artboards.js'), { binaryBase64 } = await import('./psd-export.js');
+      const image = { width: 4, height: 4, data: new Uint8ClampedArray(4 * 4 * 4) }; for (let i=0;i<image.data.length;i+=4) image.data.set([255,0,0,255],i);
+      const mask = { width:4,height:4,data:new Uint8ClampedArray(4*4*4) }; mask.data.fill(255);
+      const document={width:40,height:20,children:[{name:'中文画板',artboard:{rect:{left:10,top:4,right:20,bottom:14}},children:[{name:'Red',left:12,top:6,imageData:image,mask:{left:12,top:6,right:16,bottom:10,imageData:mask,defaultColor:0}}]},{name:'Second',artboard:{rect:{left:24,top:0,right:36,bottom:12}},children:[{name:'Red 2',left:25,top:1,imageData:image}]}]};
+      const boards=await parsePhotoshopArtboards(binaryBase64(new Uint8Array(writePsd(document,{generateThumbnail:false}))),1000000);
+      return boards.map((board)=>({name:board.name,width:board.snapshot.manifest.width,height:board.snapshot.manifest.height,origin:board.snapshot.manifest.layers.find((l)=>l.imageFile).transform.origin,mask:!!board.snapshot.manifest.layers.find((l)=>l.imageFile).maskFile}));
+    });
+    expect(result).toEqual([{name:'中文画板',width:10,height:10,origin:[2,2],mask:true},{name:'Second',width:12,height:12,origin:[1,1],mask:false}]);
+  });
+
   test('full workflows: precision PSD/PSB channel samples retain low bits and float values on import', async () => {
     const page = resolvePage();
     const result = await page.evaluate(async () => {
@@ -45,9 +69,10 @@ export function fullWorkflowCases(test, expect, resolvePage) {
       const { runImagePlugin } = await import('./plugin-api.js'), source = 'function transform(image){for(let i=0;i<image.data.length;i+=4)image.data[i]=255-image.data[i];return image;}', image = new ImageData(new Uint8ClampedArray([20, 30, 40, 128]), 1, 1);
       const good = [...await runImagePlugin(source, image)]; let refused = false;
       try { await runImagePlugin('function transform(image){return {width:1,height:1,data:new Uint8ClampedArray(2)}}', image); } catch { refused = true; }
-      return { good, refused };
+      const isolated = [...await runImagePlugin('function transform(image){image.data[0]=typeof fetch==="undefined"&&typeof window==="undefined"&&typeof require==="undefined"&&typeof indexedDB==="undefined"?1:0;return image;}', image)];
+      return { good, refused, isolated: isolated[0] };
     });
-    expect(result).toEqual({ good: [235, 30, 40, 128], refused: true });
+    expect(result).toEqual({ good: [235, 30, 40, 128], refused: true, isolated: 1 });
   });
 
   test('full workflows: OpenRaster export includes a standard layer stack and a complete editable round-trip', async () => {

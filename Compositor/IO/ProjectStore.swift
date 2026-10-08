@@ -307,6 +307,7 @@ actor ProjectStore {
                 guard text.isValid,
                       text.colorRuns == nil || manifest.version >= 10,
                       text.fontRuns == nil || manifest.version >= 11,
+                      text.sizeRuns == nil || manifest.version >= 17,
                       layer.imageFile != nil, layer.isGroup != true, layer.adjustment == nil else { throw ProjectError.invalid }
             }
             if let adjustment = layer.adjustment {

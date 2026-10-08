@@ -14,6 +14,9 @@ import { encodeChannelSource, decodeChannelSource, channelValue } from '../rende
 import { convertFloatChannels, profileBytes } from '../renderer/color-engine.js';
 import { collageRects, rectifyPixels } from '../renderer/layout-workflows.js';
 import { surface } from '../renderer/raster.js';
+import { encodePNG8, decodePNG } from '../renderer/png-pixels.js';
+import { latestRelease } from '../renderer/update-notes.js';
+import { canonicalRuns, replaceTextContent, textSpans } from '../renderer/text-style.js';
 
 test('Dodge/Burn apply tonal ranges, preserve alpha and leave uncovered pixels intact', () => {
   const pixels = new Uint8ClampedArray([32, 32, 32, 255, 128, 128, 128, 128, 230, 230, 230, 255, 80, 100, 150, 0]);
@@ -72,4 +75,19 @@ test('collage cells maintain spacing and perspective crop validates the four-poi
   const image=surface(2,2), ctx=image.getContext('2d'), pixels=ctx.createImageData(2,2); pixels.data.set([255,0,0,255,0,255,0,255,0,0,255,255,255,255,255,255]); ctx.putImageData(pixels,0,0);
   const rectified=rectifyPixels(image,[{x:0,y:0},{x:2,y:0},{x:2,y:2},{x:0,y:2}],2,2); assert.deepEqual([...rectified.getContext('2d').getImageData(0,0,2,2).data],[...pixels.data]);
   assert.throws(()=>rectifyPixels(image,[{x:0,y:0},{x:2,y:2},{x:2,y:0},{x:0,y:2}],2,2));
+});
+
+test('eight-bit PNG encoding retains the exact alpha and color samples for automation', async () => {
+  const original = new Uint8ClampedArray([12,34,56,78,255,0,1,255]);
+  const decoded = await decodePNG(await encodePNG8({ width:2,height:1,data:original })); assert.deepEqual([...decoded.data], [...original].map((v)=>v*257));
+});
+
+test('release notes are retrieved as text and unexpected download origins are refused', async () => {
+  const release = await latestRelease(async () => ({ ok:true,json:async()=>({tag_name:'v0.11.0',body:'New channels',html_url:'https://github.com/hquip/Compositor/releases/tag/v0.11.0'}) })); assert.equal(release.notes,'New channels');
+  await assert.rejects(()=>latestRelease(async()=>({ok:true,json:async()=>({tag_name:'v1',html_url:'https://example.com/file'})})));
+});
+
+test('mixed font sizes rebase through text edits and preserve style span boundaries', () => {
+  const style={content:'ABCD',fontName:'Arial',fontSize:20,red:0,green:0,blue:0,sizeRuns:[{location:1,length:2,fontSize:40}]};
+  const result=replaceTextContent(style,'A!BCD'); assert.deepEqual(result.sizeRuns,[{location:2,length:2,fontSize:40}]); assert.deepEqual(textSpans(style).map((span)=>[span.text,span.fontSize]),[['A',20],['BC',40],['D',20]]);
 });

@@ -1,5 +1,8 @@
 import { parsePhotoshop } from './photoshop.js';
 import { parsePhotoshopExtended } from './photoshop-extended.js';
+import { parsePhotoshopArtboards } from './photoshop-artboards.js';
+import { retainResources } from './workflow-assets.js';
+import { decodeOpenRaster } from './openraster.js';
 import { surface } from './raster.js';
 import { applyCameraRaw } from './adjustments.js';
 import { decodeImage } from './compose.js';
@@ -25,6 +28,12 @@ export async function importFiles(editor, files) {
   const ordinary = [];
   for (const file of files) {
     if (file.kind === 'photoshop') {
+      const artboards = await parsePhotoshopArtboards(file.data, editor.pixelBudget);
+      if (artboards) {
+        const result = await settingsDialog('Photoshop artboards', [{ key: 'choice', label: 'Open artboards', options: ['Open as separate projects', 'Cancel'], default: 'Open as separate projects' }], {});
+        if (result?.choice === 'Open as separate projects') for (const board of artboards) { await editor.workspace.open({ snapshot: board.snapshot, name: board.name, path: 'artboard:' + crypto.randomUUID() }); editor.history.savedRevision = null; editor.name = board.name; editor.fit(); editor.update(); }
+        continue;
+      }
       const used = [...editor.images.values(), ...editor.masks.values()].reduce((sum, image) => sum + image.width * image.height, 0);
       const parsed = await parsePhotoshopExtended(file.data, editor.pixelBudget - used);
       const summary = document.createElement('dialog'); const title = document.createElement('h2'); title.textContent = 'Photoshop conversion';
@@ -33,8 +42,10 @@ export async function importFiles(editor, files) {
       const choice = await new Promise((resolve) => summary.addEventListener('close', () => resolve(summary.returnValue), { once: true })); summary.remove();
       if (choice === 'Import') {
         if (!editor.manifest) { await editor.install(parsed.snapshot, true); editor.name = file.name; editor.history.savedRevision = null; editor.fit(); }
-        else { const before = editor.snapshot(), imported = parsed.snapshot; editor.manifest.layers.push(...imported.manifest.layers); Object.assign(editor.assets, imported.assets); editor.manifest.activeLayerID = imported.manifest.activeLayerID; await editor.install(editor.snapshot()); editor.history.push(before, editor.snapshot(), 'Import Photoshop'); }
+        else { const before = editor.snapshot(), imported = parsed.snapshot; retainResources(editor, imported); editor.manifest.layers.push(...imported.manifest.layers); Object.assign(editor.assets, imported.assets); editor.manifest.activeLayerID = imported.manifest.activeLayerID; await editor.install(editor.snapshot()); editor.history.push(before, editor.snapshot(), 'Import Photoshop'); }
       }
+    } else if (file.kind === 'openraster') {
+      const snapshot = await decodeOpenRaster(base64Bytes(file.data), editor.pixelBudget); await editor.workspace.open({ snapshot, name: file.name, path: 'openraster:' + crypto.randomUUID() }); editor.history.savedRevision = null;
     } else if (file.kind === 'openexr') {
       if (ordinary.length) { await editor.importImages(ordinary); ordinary.length = 0; }
       await importHDRFile(editor, base64Bytes(file.data), file.name);

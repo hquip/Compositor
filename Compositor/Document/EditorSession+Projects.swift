@@ -8,7 +8,7 @@ extension ProjectSnapshot {
                 ImageLayer(id: $0.id, asset: images[$0.id], name: $0.name,
                     isVisible: $0.isVisible, transform: $0.transform, parentID: $0.parentID, isGroup: $0.isGroup == true,
                     opacity: $0.opacity ?? 1, blendMode: $0.blendMode ?? .normal, mask: mask(for: $0),
-                    maskSourceID: $0.maskSourceID, adjustment: $0.adjustment,
+                    maskSourceID: $0.maskSourceID, adjustment: WorkflowRendering.adjustment($0.workflow, resources: workflowSources) ?? $0.adjustment,
                     shape: LayerShape.loaded($0.shape, image: images[$0.id]?.image), effects: $0.effects,
                     text: LayerText.loaded($0.text, image: images[$0.id]?.image), editableFilters: filterState(for: $0),
                     vectorPath: LayerVectorPath.loaded($0.vectorPath, image: images[$0.id]?.image),
@@ -40,7 +40,7 @@ extension EditorSession {
                 return copy
             }
             return ProjectLayerRecord(id: layer.id, name: layer.name, isVisible: layer.isVisible,
-                transform: layer.transform, imageFile: layer.asset == nil ? nil : "\(layer.id.uuidString).png", parentID: layer.parentID, isGroup: layer.isGroup, opacity: layer.opacity, blendMode: layer.blendMode, maskFile: layer.mask == nil ? nil : "\(layer.id.uuidString).mask.png", maskEnabled: layer.mask?.isEnabled, maskSourceID: layer.maskSourceID, adjustment: layer.adjustment, maskPlacement: layer.mask?.placement, maskLinked: layer.mask?.isLinked, shape: layer.liveShape?.style, effects: layer.effects, text: layer.liveText?.style,
+                transform: layer.transform, imageFile: layer.asset == nil ? nil : "\(layer.id.uuidString).png", parentID: layer.parentID, isGroup: layer.isGroup, opacity: layer.opacity, blendMode: layer.blendMode, maskFile: layer.mask == nil ? nil : "\(layer.id.uuidString).mask.png", maskEnabled: layer.mask?.isEnabled, maskSourceID: layer.maskSourceID, adjustment: WorkflowRendering.persistsAdjustment(layer.workflow) ? layer.adjustment : nil, maskPlacement: layer.mask?.placement, maskLinked: layer.mask?.isLinked, shape: layer.liveShape?.style, effects: layer.effects, text: layer.liveText?.style,
                 filterSourceFile: layer.liveFilters == nil ? nil : "\(layer.id.uuidString).source.png", filters: entries, filterWorkingSpace: layer.liveFilters?.workingSpace, vectorPath: layer.liveVectorPath?.style, vectorMask: layer.liveVectorMask?.style, hdrSourceFile: layer.hdrSource == nil ? nil : "\(layer.id.uuidString).hdr-source.tif", exrSourceFile: layer.hdrSource?.exrData == nil ? nil : "\(layer.id.uuidString).exr-source.exr", exrView: layer.hdrSource?.exrView, smartObject: layer.smartObject, fillOpacity: layer.fillOpacity == 1 ? nil : layer.fillOpacity, workflow: layer.workflow)
         }
         return ProjectSnapshot(manifest: ProjectManifest(resolution: document.resolution, documentID: document.id, width: document.width,

@@ -55,12 +55,12 @@ namespace Compositor.Windows
                 Color(text); Range(text, "fontSize", 1, 2000, 72); Range(text, "tracking", -100, 1000); Range(text, "leading", 0, 5000);
                 Require(new[] { "Left", "Center", "Right" }.Contains(Json.Text(text, "alignment", "Left")), "Invalid text alignment.");
                 if (Json.Get(text, "boxSize") != null) { var size = Json.Array(text["boxSize"]); Require(size.Length == 2 && size.All(value => Json.Number(value) >= 16 && Json.Number(value) <= 30000) && Json.Number(size[0]) * Json.Number(size[1]) <= ProjectStore.SurfacePixels, "Invalid paragraph bounds."); }
-                foreach (var key in new[] { "colorRuns", "fontRuns" })
+                foreach (var key in new[] { "colorRuns", "fontRuns", "sizeRuns" })
                 {
-                    if (Json.Get(text, key) == null) continue; Require(version >= (key == "colorRuns" ? 10 : 11), "Text run metadata requires a newer format version.");
+                    if (Json.Get(text, key) == null) continue; Require(version >= (key == "colorRuns" ? 10 : key == "fontRuns" ? 11 : 17), "Text run metadata requires a newer format version.");
                     var runs = Json.Array(text[key]); Require(runs.Length > 0, "Text run lists must not be empty."); double end = 0;
                     foreach (var item in runs) { var run = Json.Map(item); var start = Range(run, "location", 0, content.Length); var length = Range(run, "length", 1, content.Length); Require(start % 1 == 0 && length % 1 == 0 && start >= end && start + length <= content.Length, "Invalid text run range."); end = start + length;
-                        if (key == "colorRuns") Color(run); else { var name = Json.Text(run, "fontName"); Require(!string.IsNullOrEmpty(name) && name.Length <= 200 && !name.Contains('\n') && !name.Contains('\r'), "Invalid text run font."); }
+                        if (key == "colorRuns") Color(run); else if (key == "sizeRuns") Range(run, "fontSize", 1, 2000); else { var name = Json.Text(run, "fontName"); Require(!string.IsNullOrEmpty(name) && name.Length <= 200 && !name.Contains('\n') && !name.Contains('\r'), "Invalid text run font."); }
                     }
                 }
             }

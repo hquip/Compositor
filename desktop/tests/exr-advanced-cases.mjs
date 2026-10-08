@@ -1,3 +1,4 @@
+import { FORMAT_VERSION } from '../renderer/core.js';
 import fs from 'node:fs/promises';
 const fixture = async (name) => [...await fs.readFile(new URL('./fixtures/openexr/' + name, import.meta.url))];
 export function advancedEXRCases(test, expect, resolvePage) {
@@ -5,7 +6,7 @@ export function advancedEXRCases(test, expect, resolvePage) {
   const apply = async (page) => { await page.locator('dialog[open]').last().getByRole('button', { name: 'Apply', exact: true }).click(); await page.evaluate(() => window.exrAdvanced); };
   test('EXR advanced: PIZ tiled source and selected working space survive project reopening', async () => {
     const page = resolvePage(); await begin(page, 'tiled-piz.exr'); await page.locator('[data-setting="workingSpace"]').selectOption('ACEScg'); await apply(page);
-    const result = await page.evaluate(async () => { const { editor: e } = await import('./app.js'); const before = e.assets[e.active.exrSourceFile], pixels = [...e.images.get(e.active.id).compositorHDRSource.data]; await e.install(e.projectSnapshot()); return { same: before === e.assets[e.active.exrSourceFile], pixels, reopened: [...e.images.get(e.active.id).compositorHDRSource.data], space: e.manifest.hdrWorkingSpace, version: e.manifest.version }; }); expect(result.same).toBe(true); expect(result.reopened).toEqual(result.pixels); expect(result.space).toBe('ACEScg'); expect(result.version).toBe(16);
+    const result = await page.evaluate(async () => { const { editor: e } = await import('./app.js'); const before = e.assets[e.active.exrSourceFile], pixels = [...e.images.get(e.active.id).compositorHDRSource.data]; await e.install(e.projectSnapshot()); return { same: before === e.assets[e.active.exrSourceFile], pixels, reopened: [...e.images.get(e.active.id).compositorHDRSource.data], space: e.manifest.hdrWorkingSpace, version: e.manifest.version }; }); expect(result.same).toBe(true); expect(result.reopened).toEqual(result.pixels); expect(result.space).toBe('ACEScg'); expect(result.version).toBe(FORMAT_VERSION);
   });
   test('EXR advanced: multipart import shares its original and deleting one part keeps the remaining source', async () => {
     const page = resolvePage(); await begin(page, 'multipart.exr'); await page.locator('[data-setting="parts"]').selectOption('All image parts'); await apply(page);

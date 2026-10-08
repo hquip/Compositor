@@ -7,7 +7,7 @@ import { resizedGrid } from './raster-space.js';
 import { icon } from './icons.js';
 
 export function readTextDOM(node, base) {
-  let content = ''; const colors = [], fonts = [];
+  let content = ''; const colors = [], fonts = [], sizes = [];
   function append(text, element) {
     if (!text) return;
     const css = getComputedStyle(element), channels = css.color.match(/[\d.]+/g)?.slice(0, 3).map(Number) ?? [0, 0, 0];
@@ -16,7 +16,8 @@ export function readTextDOM(node, base) {
     if (record) { const original = JSON.parse(record); if (['red', 'green', 'blue'].every((key, i) => Math.round(original[key] * 255) === channels[i])) color = original; }
     const family = css.fontFamily.split(',')[0].replace(/^['"]|['"]$/g, '').trim(), source = element.closest('[data-text-font]')?.dataset.textFont;
     const font = { fontName: source && fontFamily(source) === family ? source : family || base.fontName };
-    content += text; for (let i = 0; i < text.length; i++) { colors.push(color); fonts.push(font); }
+    const size = { fontSize: Number.parseFloat(css.fontSize) || base.fontSize };
+    content += text; for (let i = 0; i < text.length; i++) { colors.push(color); fonts.push(font); sizes.push(size); }
   }
   function children(parent) {
     let previousBlock = false, previousEmpty = false;
@@ -35,7 +36,7 @@ export function readTextDOM(node, base) {
   const style = { ...base, content };
   if (fonts.length && fonts.every((font) => font.fontName === fonts[0].fontName)) style.fontName = fonts[0].fontName;
   if (colors.length && colors.every((color) => ['red', 'green', 'blue'].every((key) => color[key] === colors[0][key]))) Object.assign(style, colors[0]);
-  style.colorRuns = canonicalRuns(colors, style, 'colorRuns'); style.fontRuns = canonicalRuns(fonts, style, 'fontRuns'); return normalizedTextStyle(style);
+  style.colorRuns = canonicalRuns(colors, style, 'colorRuns'); style.fontRuns = canonicalRuns(fonts, style, 'fontRuns'); style.sizeRuns = canonicalRuns(sizes, style, 'sizeRuns'); return normalizedTextStyle(style);
 }
 
 export function installInlineText(editor, api) {
@@ -98,7 +99,7 @@ export function installInlineText(editor, api) {
     const node = document.createElement('div'); node.className = 'inline-text-editor'; node.contentEditable = 'true'; node.spellcheck = false; node.setAttribute('role', 'textbox'); node.setAttribute('aria-multiline', 'true'); node.setAttribute('aria-label', 'Edit text on canvas'); node.dir = 'auto'; node.dataset.textFont = style.fontName; node.dataset.textColor = JSON.stringify({ red: style.red, green: style.green, blue: style.blue });
     Object.assign(node.style, { width: `${width}px`, height: `${height}px`, fontFamily: JSON.stringify(fontFamily(style.fontName)), fontSize: `${style.fontSize}px`, color: colorHex(style), textAlign: style.alignment.toLowerCase(), letterSpacing: `${style.tracking ?? 0}px`, lineHeight: `${style.leading || style.fontSize * 1.2}px`, whiteSpace: style.boxSize ? 'pre-wrap' : 'pre', overflowWrap: 'anywhere', fontKerning: 'normal', unicodeBidi: 'plaintext' });
     applyFont(node, style.fontName);
-    for (const part of textSpans(style)) { const span = document.createElement('span'); span.textContent = part.text; applyFont(span, part.fontName); span.style.color = colorHex(part); span.dataset.textColor = JSON.stringify({ red: part.red, green: part.green, blue: part.blue }); node.append(span); }
+    for (const part of textSpans(style)) { const span = document.createElement('span'); span.textContent = part.text; applyFont(span, part.fontName); span.style.fontSize = `${part.fontSize}px`; span.style.color = colorHex(part); span.dataset.textColor = JSON.stringify({ red: part.red, green: part.green, blue: part.blue }); node.append(span); }
     editor.images.set(layer.id, surface(1, 1)); editor.manifest.activeLayerID = layer.id; editor.selectedIDs = new Set([layer.id]);
     draft = { layer, style, before, selected, original, node, width, height, fixed: !!style.boxSize, modified: false, handles: [] }; editor.textDraft = draft;
     editor.viewport.append(node);
@@ -136,14 +137,16 @@ export function installInlineText(editor, api) {
     const selection = getSelection(), target = selection.getRangeAt(0), fragment = target.extractContents(), span = document.createElement('span');
     for (const node of fragment.querySelectorAll('*')) {
       if (command === 'fontName') { node.style.fontFamily = ''; node.style.fontWeight = ''; node.style.fontStyle = ''; node.removeAttribute('face'); delete node.dataset.textFont; }
+      else if (command === 'fontSize') node.style.fontSize = '';
       else { node.style.color = ''; node.removeAttribute('color'); delete node.dataset.textColor; }
     }
-    if (command === 'fontName') applyFont(span, value); else { span.style.color = value; span.dataset.textColor = JSON.stringify(colorRecord(value)); }
+    if (command === 'fontName') applyFont(span, value); else if (command === 'fontSize') span.style.fontSize = `${value}px`; else { span.style.color = value; span.dataset.textColor = JSON.stringify(colorRecord(value)); }
     span.append(fragment); target.insertNode(span); target.selectNodeContents(span); selection.removeAllRanges(); selection.addRange(target); range = target.cloneRange();
     draft.modified = true; try { resizePointText(); } catch (error) { api.showError(error); }
   }
   font.addEventListener('change', () => format('fontName', font.value)); color.addEventListener('input', () => format('foreColor', color.value));
   for (const [control, key] of [[size, 'fontSize'], [tracking, 'tracking'], [leading, 'leading']]) control.addEventListener('change', () => {
+    if (key === 'fontSize') { const value = Math.max(1, Math.min(2000, Number(control.value) || 1)); control.value = value; format('fontSize', value); return; }
     if (!draft) return; draft.modified = true; draft.style[key] = Math.max(Number(control.min), Math.min(Number(control.max), Number(control.value) || 0)); control.value = draft.style[key];
     draft.node.style.fontSize = `${draft.style.fontSize}px`; draft.node.style.lineHeight = `${draft.style.leading || draft.style.fontSize * 1.2}px`; draft.node.style.letterSpacing = `${draft.style.tracking}px`; try { resizePointText(); } catch (error) { api.showError(error); }
   });

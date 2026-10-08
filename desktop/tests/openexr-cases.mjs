@@ -1,3 +1,4 @@
+import { FORMAT_VERSION } from '../renderer/core.js';
 import fs from 'node:fs/promises';
 
 const fixture = (name) => fs.readFile(new URL('./fixtures/openexr/' + name, import.meta.url));
@@ -7,7 +8,7 @@ export function openEXRCases(test, expect, resolvePage) {
     await page.evaluate(async (bytes) => { const { editor: e } = await import('./app.js'); window.exrOperation = (await import('./hdr-workflows.js')).importHDRFile(e, new Uint8Array(bytes), 'Reference EXR'); }, bytes);
     const dialog = page.locator('dialog[open]').last(); await expect(dialog.getByRole('heading')).toHaveText('Import OpenEXR'); await dialog.getByRole('button', { name: 'Apply', exact: true }).click(); await page.evaluate(() => window.exrOperation);
     const result = await page.evaluate(async () => { const { editor: e } = await import('./app.js'), { decodeFloatTIFF } = await import('./vendor/float-tiff.js'), { base64Bytes } = await import('./precision-raster.js'); const snapshot = e.projectSnapshot(); await e.install(snapshot); const raw = decodeFloatTIFF(base64Bytes(e.assets[e.active.hdrSourceFile])); return { size: [e.manifest.width, e.manifest.height], origin: e.active.transform.origin, samples: [...raw.data.slice(4, 8)], version: snapshot.manifest.version, filtered: e.images.get(e.active.id).compositorHDR.data[4] }; });
-    expect(result).toEqual({ size: [9, 23], origin: [2, 2], samples: [5, .125, -.125, .5], version: 16, filtered: 5 });
+    expect(result).toEqual({ size: [9, 23], origin: [2, 2], samples: [5, .125, -.125, .5], version: FORMAT_VERSION, filtered: 5 });
   });
   test('OpenEXR: named ACEScg pass import honors data bounds and leaves originals protected', async () => {
     const page = resolvePage(); await page.evaluate(async (bytes) => { const { editor: e } = await import('./app.js'); window.exrOperation = (await import('./hdr-workflows.js')).importHDRFile(e, new Uint8Array(bytes), 'ACES beauty'); }, [...await fixture('beauty-acescg.exr')]);

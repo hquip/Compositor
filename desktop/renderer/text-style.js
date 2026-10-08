@@ -8,7 +8,7 @@ export function canonicalFontName(name) {
   const aliases = new Map([['Arial', 'ArialMT'], ['Arial Bold', 'Arial-BoldMT'], ['Arial Italic', 'Arial-ItalicMT'], ['Arial Bold Italic', 'Arial-BoldItalicMT'], ['Courier New', 'CourierNewPSMT'], ['Times New Roman', 'TimesNewRomanPSMT']]);
   return aliases.get(name.trim()) ?? name.trim();
 }
-const keys = { colorRuns: ['red', 'green', 'blue'], fontRuns: ['fontName'] };
+const keys = { colorRuns: ['red', 'green', 'blue'], fontRuns: ['fontName'], sizeRuns: ['fontSize'] };
 const same = (a, b, fields) => fields.every((field) => a[field] === b[field]);
 export function styleUnits(style, kind) {
   const units = Array.from({ length: style.content.length }, () => style);
@@ -27,12 +27,12 @@ export function canonicalRuns(units, base, kind) {
 }
 export function normalizedTextStyle(style) {
   if (!/[\r\u0085\u2028\u2029\v\f]/.test(style.content)) return { ...style };
-  const result = { ...style, content: '' }, colors = styleUnits(style, 'colorRuns'), fonts = styleUnits(style, 'fontRuns'), colorUnits = [], fontUnits = [];
+  const result = { ...style, content: '' }, colors = styleUnits(style, 'colorRuns'), fonts = styleUnits(style, 'fontRuns'), sizes = styleUnits(style, 'sizeRuns'), colorUnits = [], fontUnits = [], sizeUnits = [];
   for (let i = 0; i < style.content.length; i++) {
-    result.content += /[\r\u0085\u2028\u2029\v\f]/.test(style.content[i]) ? '\n' : style.content[i]; colorUnits.push(colors[i]); fontUnits.push(fonts[i]);
+    result.content += /[\r\u0085\u2028\u2029\v\f]/.test(style.content[i]) ? '\n' : style.content[i]; colorUnits.push(colors[i]); fontUnits.push(fonts[i]); sizeUnits.push(sizes[i]);
     if (style.content[i] === '\r' && style.content[i + 1] === '\n') i++;
   }
-  result.colorRuns = canonicalRuns(colorUnits, result, 'colorRuns'); result.fontRuns = canonicalRuns(fontUnits, result, 'fontRuns'); return result;
+  result.colorRuns = canonicalRuns(colorUnits, result, 'colorRuns'); result.fontRuns = canonicalRuns(fontUnits, result, 'fontRuns'); result.sizeRuns = canonicalRuns(sizeUnits, result, 'sizeRuns'); return result;
 }
 export function replaceTextContent(style, content) {
   const before = style.content; let start = 0, end = 0;
@@ -53,7 +53,8 @@ export function textSpans(style) {
   for (let i = 0; i + 1 < offsets.length; i++) {
     const start = offsets[i], end = offsets[i + 1]; if (end === start) continue;
     const color = style.colorRuns?.find((run) => start >= run.location && start < run.location + run.length) ?? style, font = style.fontRuns?.find((run) => start >= run.location && start < run.location + run.length) ?? style;
-    spans.push({ start, end, text: style.content.slice(start, end), fontName: font.fontName, red: color.red, green: color.green, blue: color.blue });
+    const size = style.sizeRuns?.find((run) => start >= run.location && start < run.location + run.length) ?? style;
+    spans.push({ start, end, text: style.content.slice(start, end), fontName: font.fontName, fontSize: size.fontSize, red: color.red, green: color.green, blue: color.blue });
   }
   return spans;
 }

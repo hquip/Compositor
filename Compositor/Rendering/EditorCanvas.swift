@@ -1007,6 +1007,15 @@ final class CanvasView: NSView {
                 : session.pixelMove?.raster.layer.id == layer.id ? session.pixelMove?.raster : nil
             // An empty layer has nothing to draw, unless a filter (Vignette) is previewing pixels onto it.
             guard layer.asset != nil || stroke != nil || session.filterEdit?.previewImage(for: layer.id) != nil else { return }
+            if layer.fillOpacity != 1, stroke == nil, let image = layer.asset?.image {
+                let transform = session.displayedTransform(for: layer)
+                let mask = layer.mask?.clipImage(placement: layer.maskTransform, over: transform, width: image.width, height: image.height)
+                if let rendered = LayerEffectsRenderer.cached(image, mask: mask, effects: layer.effects, fill: layer.fillOpacity) {
+                    let grown = LayerEffectsRenderer.placed(transform, image: rendered.image, inset: rendered.inset)
+                    LayerRenderer.draw(rendered.image, transform: grown, center: center(grown.center), scale: scale, opacity: opacity, blendMode: blendMode(of: layer), mask: nil, in: context)
+                }
+                return
+            }
             // Smudge or Liquify in progress: the layer as the stroke has reshaped it so far, across the canvas.
             if let warp = session.warpStroke, warp.layer.id == layer.id, let image = warp.image {
                 let canvas = LayerTransform(origin: .zero, size: document.size)
@@ -2886,6 +2895,7 @@ extension CanvasView {
         }
         // One layer's pixels, placed, through its own mask and at its opacity — what `drawOwn` draws.
         func own(_ layer: ImageLayer) -> CIImage? {
+            if layer.fillOpacity != 1 { unsupported = true; return nil }
             let opacity = layer.effectiveOpacity(in: byID)
             // Text being edited, as it will be committed.
             if layer.id == session.textDraft?.layerID {
@@ -3007,6 +3017,7 @@ extension CanvasView {
         }
         // An adjustment re-colors what's under it, through its own mask and its folders' masks, at its opacity.
         func adjusted(_ below: CIImage, by layer: ImageLayer, adjustment: LayerAdjustment, folders: Bool) -> CIImage? {
+            if adjustment.workflowLookup != nil { return nil }
             guard var changed = GPUAdjustment.apply(adjustment, to: below, scale: placement.scale, mapping: placement.mapping)
             else { return nil }
             // In a blend mode, the adjusted colors blend with the ones under them at full coverage, and the original

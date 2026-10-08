@@ -50,6 +50,7 @@ cat > "$PROJECT_DIR/appcast.xml" <<XML
       <sparkle:shortVersionString>$VERSION</sparkle:shortVersionString>
       <sparkle:minimumSystemVersion>$MINIMUM</sparkle:minimumSystemVersion>
       <link>https://github.com/$REPO/releases/tag/$TAG</link>
+      <sparkle:releaseNotesLink>https://github.com/$REPO/releases/tag/$TAG</sparkle:releaseNotesLink>
       <enclosure url="https://github.com/$REPO/releases/download/$TAG/$APP.dmg" $signature type="application/octet-stream"/>
     </item>
   </channel>

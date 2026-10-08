@@ -15,7 +15,7 @@ nonisolated struct LayerTextStyle: Codable, Equatable, Sendable {
     var tracking: CGFloat = 0
     /// Baseline to baseline, in layer pixels, as Photoshop's Leading is. 0 is Auto: 120% of the font size.
     var leading: CGFloat = 0
-    var autoLeading: CGFloat { fontSize * 1.2 }
+    var autoLeading: CGFloat { max(fontSize, sizeRuns?.map(\.fontSize).max() ?? fontSize) * 1.2 }
     var lineHeight: CGFloat { leading > 0 ? leading : autoLeading }
     /// The gap between the text and its box, in layer pixels — the same for point text and a fixed box, so turning
     /// one into the other doesn't move the text, and wide enough to leave the box's edges easy to grab.
@@ -32,13 +32,14 @@ nonisolated struct LayerTextStyle: Codable, Equatable, Sendable {
     var colorRuns: [LayerTextColorRun]? = nil
     /// Letters set in a face other than `fontName`, in the same offsets. Nil when the whole text is one face.
     var fontRuns: [LayerTextFontRun]? = nil
+    var sizeRuns: [LayerTextSizeRun]? = nil
     var isValid: Bool {
         content.utf16.count <= 100_000 && boxIsValid
         && fontSize.isFinite && (1...2000).contains(fontSize)
         && [red, green, blue].allSatisfy { $0.isFinite && (0...1).contains($0) }
         && tracking.isFinite && (-100...1000).contains(tracking)
         && leading.isFinite && (0...5000).contains(leading)
-        && colorRunsAreValid && fontRunsAreValid
+        && colorRunsAreValid && fontRunsAreValid && sizeRunsAreValid
     }
     private var colorRunsAreValid: Bool {
         guard let colorRuns else { return true }
@@ -60,6 +61,31 @@ nonisolated struct LayerTextStyle: Codable, Equatable, Sendable {
         }
         return !fontRuns.isEmpty && end <= content.utf16.count
     }
+
+    private var sizeRunsAreValid: Bool {
+        guard let sizeRuns else { return true }
+        var end = 0
+        for run in sizeRuns {
+            guard run.location >= end, run.length > 0, run.location <= Int.max - run.length,
+                  run.fontSize.isFinite, (1...2000).contains(run.fontSize) else { return false }
+            end = run.location + run.length
+        }
+        return !sizeRuns.isEmpty && end <= content.utf16.count
+    }
+    mutating func rebaseSizes(replacing range: NSRange, with count: Int) {
+        guard sizeRuns != nil else { return }
+        var sizes = (0..<content.utf16.count).map { fontSize(at: $0) }
+        let start = max(0, min(range.location, sizes.count)), end = max(start, min(range.location + range.length, sizes.count))
+        let inherited = start > 0 ? sizes[start - 1] : sizes.first ?? fontSize
+        sizes.replaceSubrange(start..<end, with: repeatElement(inherited, count: max(0, count)))
+        var runs: [LayerTextSizeRun] = []
+        for i in sizes.indices where sizes[i] != fontSize {
+            if let last = runs.last, last.location + last.length == i, last.fontSize == sizes[i] { runs[runs.count - 1].length += 1 }
+            else { runs.append(LayerTextSizeRun(location: i, length: 1, fontSize: sizes[i])) }
+        }
+        sizeRuns = runs.isEmpty ? nil : runs
+    }
+    func fontSize(at index: Int) -> CGFloat { sizeRuns?.first { $0.location <= index && index < $0.location + $0.length }?.fontSize ?? fontSize }
 
     /// The color of the UTF-16 unit at `index`.
     func color(at index: Int) -> PaletteColor {
@@ -121,6 +147,7 @@ nonisolated struct LayerTextStyle: Codable, Equatable, Sendable {
     /// Keeps each letter's color and face when `range` of `content` is replaced by `length` new UTF-16 units, which
     /// take them from the letter before, as typing does. Call before `content` changes.
     mutating func replaceCharacters(in range: NSRange, withLength length: Int) {
+        rebaseSizes(replacing: range, with: length)
         let count = content.utf16.count
         let start = max(0, min(range.location, count)), end = max(start, min(range.location + range.length, count))
         if colorRuns != nil {
@@ -431,7 +458,8 @@ extension EditorSession {
     /// The text as it is drawn and measured, with each letter's own face and color.
     static func attributedText(_ style: LayerTextStyle) -> NSMutableAttributedString {
         let string = NSMutableAttributedString(string: style.content, attributes: textAttributes(style))
-        for run in style.fontRuns ?? [] where Self.containsTextRun(run.location, run.length, in: string.length) {
+        applySizeRuns(style, to: string)
+        for run in style.fontRuns ?? [] where Self.containsTextRun(run.location, run.length, in: string.length) && style.sizeRuns == nil {
             let font = NSFont(name: run.fontName, size: style.fontSize) ?? NSFont.systemFont(ofSize: style.fontSize)
             string.addAttribute(.font, value: font, range: NSRange(location: run.location, length: run.length))
         }
@@ -440,6 +468,19 @@ extension EditorSession {
                                 range: NSRange(location: run.location, length: run.length))
         }
         return string
+    }
+
+    static func applySizeRuns(_ style: LayerTextStyle, to string: NSMutableAttributedString) {
+        guard style.sizeRuns != nil else { return }
+        var boundaries: Set<Int> = [0, string.length]
+        for run in style.fontRuns ?? [] { boundaries.insert(run.location); boundaries.insert(run.location + run.length) }
+        for run in style.sizeRuns ?? [] { boundaries.insert(run.location); boundaries.insert(run.location + run.length) }
+        let points = boundaries.filter { $0 >= 0 && $0 <= string.length }.sorted()
+        for i in 0..<max(0, points.count - 1) {
+            let start = points[i], end = points[i + 1], size = style.fontSize(at: start)
+            let font = NSFont(name: style.fontName(at: start), size: size) ?? NSFont.systemFont(ofSize: size)
+            string.addAttribute(.font, value: font, range: NSRange(location: start, length: end - start))
+        }
     }
 
     static func containsTextRun(_ location: Int, _ length: Int, in total: Int) -> Bool {
