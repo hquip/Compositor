@@ -1,0 +1,9 @@
+{
+  "appId": "com.hquip.compositor",
+  "appName": "Compositor",
+  "webDir": "www",
+  "backgroundColor": "#242426",
+  "server": { "androidScheme": "https" },
+  "android": { "allowMixedContent": false },
+  "ios": { "contentInset": "never", "preferredContentMode": "mobile" }
+}

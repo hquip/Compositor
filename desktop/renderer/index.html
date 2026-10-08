@@ -1,0 +1,106 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'wasm-unsafe-eval'; style-src 'self'; img-src 'self' data: blob:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+  <title>Compositor</title>
+  <link rel="stylesheet" href="style.css">
+  <script type="module" src="app.js"></script>
+</head>
+<body inert>
+  <header class="app-bar">
+    <div class="brand"><img src="app-icon.png" alt="" width="25" height="25"><strong>Compositor</strong></div>
+    <div class="document-tab"><span data-icon="image"></span><span id="document-title">Untitled</span><span id="document-dirty"></span></div>
+    <nav aria-label="File actions">
+      <select id="language" aria-label="Language" title="Language" data-no-translate><option value="en">English</option><option value="zh-CN">简体中文</option></select>
+      <button data-command="new" title="New canvas · Ctrl+N"><span data-icon="plus"></span><span>New</span></button>
+      <button data-command="open" title="Open project · Ctrl+O"><span data-icon="open"></span><span>Open</span></button>
+      <button data-command="import" title="Import images · Ctrl+I"><span data-icon="import"></span><span>Import</span></button>
+      <span class="separator"></span>
+      <button data-command="save" title="Save project · Ctrl+S"><span data-icon="save"></span><span>Save</span></button>
+      <button class="export-button" data-command="export-png" title="Export PNG · Ctrl+Shift+E"><span data-icon="export"></span><span>Export PNG</span></button>
+    </nav>
+  </header>
+  <div class="tool-options">
+    <div class="tool-name" id="tool-name">Move / Transform</div>
+    <div id="brush-options" hidden>
+      <label>Size <input id="brush-size" type="number" min="1" max="1000" value="40"><span>px</span></label>
+      <label>Hardness <input id="brush-hardness" type="range" min="0" max="100" value="80"></label>
+      <label>Opacity <input id="brush-opacity" type="range" min="1" max="100" value="100"></label>
+    </div>
+    <div id="shape-options" hidden><label>Shape <select id="shape-kind"><option>Rectangle</option><option>Ellipse</option></select></label></div>
+    <span id="tool-hint">Drag the selected layer · Space to pan · Ctrl+wheel to zoom</span>
+    <div class="history-actions"><button id="undo" data-command="undo" title="Undo · Ctrl+Z" aria-label="Undo" data-icon="undo"></button><button id="redo" data-command="redo" title="Redo · Ctrl+Shift+Z" aria-label="Redo" data-icon="redo"></button></div>
+  </div>
+  <main class="workspace">
+    <aside class="tool-rail" aria-label="Tools">
+      <button class="tool selected" data-tool="move" title="Move / Transform (V)" aria-label="Move tool" data-icon="move"></button>
+      <button class="tool" data-tool="brush" title="Brush (B)" aria-label="Brush tool" data-icon="brush"></button>
+      <button class="tool" data-tool="eraser" title="Eraser (E)" aria-label="Eraser tool" data-icon="eraser"></button>
+      <button class="tool" data-tool="marquee" title="Rectangle selection (M)" aria-label="Selection tool" data-icon="marquee"></button>
+      <button class="tool" data-tool="shape" title="Shape (U)" aria-label="Shape tool" data-icon="shape"></button>
+      <button class="tool" data-tool="path" title="Pen / Path (P)" aria-label="Path tool" data-icon="path"></button>
+      <button class="tool" data-tool="text" title="Type (T)" aria-label="Type tool" data-icon="text"></button>
+      <button class="tool" data-tool="eyedropper" title="Eyedropper (I)" aria-label="Eyedropper tool" data-icon="eyedropper"></button>
+      <div class="rail-divider"></div>
+      <button class="tool" data-tool="hand" title="Hand (H)" aria-label="Hand tool" data-icon="hand"></button>
+      <input id="paint-color" type="color" value="#58a6ff" title="Foreground color" aria-label="Foreground color">
+    </aside>
+    <section class="canvas-column">
+      <div id="viewport" tabindex="0" aria-label="Editor canvas">
+        <canvas id="display"></canvas>
+        <canvas id="overlay"></canvas>
+        <div class="welcome" id="welcome">
+          <div class="welcome-card">
+            <img class="welcome-icon" src="app-icon.png" width="60" height="60" alt="">
+            <h1>Welcome to Compositor</h1>
+            <p>Start with a new canvas, or bring in an image.</p>
+            <div class="welcome-actions"><button class="primary" data-command="new"><span data-icon="plus"></span>Create canvas</button><button data-command="import"><span data-icon="import"></span>Import an image</button></div>
+            <div class="welcome-divider"></div>
+            <button class="welcome-open" data-command="open"><span data-icon="open"></span>Open a project<span class="key-label">Ctrl O</span></button>
+            <span class="welcome-note">You can also drop images onto this window</span>
+          </div>
+        </div>
+        <div id="drop-indicator" hidden>Drop images to add layers</div>
+      </div>
+      <footer class="status-bar"><button id="zoom-value" data-command="fit">100%</button><button data-command="fit">Fit</button><button data-command="actual">1:1</button><span id="dimensions">No canvas</span><span class="color-profile">sRGB · 8-bit</span><span class="status-message" id="status-message">Ready</span></footer>
+    </section>
+    <aside class="inspector">
+      <section class="properties-panel">
+        <div class="section-heading"><h2>Transform</h2><span id="layer-kind">Pixel layer</span></div>
+        <div class="transform-grid">
+          <label>X <input id="position-x" type="number" min="-1000000" max="1000000" step="1" aria-label="Layer X"></label>
+          <label>Y <input id="position-y" type="number" min="-1000000" max="1000000" step="1" aria-label="Layer Y"></label>
+          <label>W <input id="layer-width" type="number" min="1" max="300000" step="1" aria-label="Layer width"></label>
+          <label>H <input id="layer-height" type="number" min="1" max="300000" step="1" aria-label="Layer height"></label>
+          <label>° <input id="layer-angle" type="number" step="1" aria-label="Layer rotation"></label>
+          <div class="flip-actions"><button data-command="flip-x" title="Flip horizontal" aria-label="Flip horizontal" data-icon="flipX"></button><button data-command="flip-y" title="Flip vertical" aria-label="Flip vertical" data-icon="flipY"></button></div>
+        </div>
+        <div class="panel-caption">Quick adjustments</div><div class="filter-actions"><button data-command="grayscale">Grayscale</button><button data-command="invert">Invert</button><button data-command="blur">Blur</button></div>
+        <div class="selection-actions"><button data-command="crop">Crop to selection</button><button data-command="deselect">Deselect</button></div>
+      </section>
+      <section class="layers-panel">
+        <div class="section-heading"><h2><span data-icon="layer"></span>Layers</h2><span id="layer-count">0</span></div>
+        <div class="appearance"><select id="blend-mode" aria-label="Blend mode"></select><label>Opacity <input id="layer-opacity" type="number" min="0" max="100" value="100" aria-label="Layer opacity"><span>%</span></label></div>
+        <div id="layer-list" role="list" aria-label="Layers"><p class="empty-layers">Your layers will appear here.</p></div>
+        <div class="layer-actions"><button data-command="add-layer" title="New layer · Ctrl+Shift+N" aria-label="Add layer" data-icon="plus"></button><button data-command="duplicate" title="Duplicate · Ctrl+J" aria-label="Duplicate layer" data-icon="duplicate"></button><button data-command="raise" title="Move layer up" aria-label="Raise layer" data-icon="up"></button><button data-command="lower" title="Move layer down" aria-label="Lower layer" data-icon="down"></button><button data-command="rename" title="Rename layer" aria-label="Rename layer" data-icon="rename"></button><button data-command="delete-layer" title="Delete layer" aria-label="Delete layer" data-icon="trash"></button></div>
+      </section>
+      <div class="inspector-note">Compositor <span>Windows · 0.8</span></div>
+    </aside>
+  </main>
+  <dialog id="new-dialog">
+    <form id="new-form">
+      <h2>New canvas</h2>
+      <p class="dialog-description">Choose the dimensions for your composition.</p>
+      <div class="presets"><button type="button" data-preset="1920,1080">HD 1920×1080</button><button type="button" data-preset="1080,1080">Square</button><button type="button" data-preset="1080,1920">Portrait</button></div>
+      <div class="dimension-inputs"><label>Width<input id="new-width" type="number" min="1" max="30000" value="1920" required></label><span>×</span><label>Height<input id="new-height" type="number" min="1" max="30000" value="1080" required></label></div>
+      <p id="new-error" class="error" aria-live="polite"></p>
+      <div class="dialog-actions"><button type="button" data-dismiss="new-dialog">Cancel</button><button class="primary" type="submit">Create canvas</button></div>
+    </form>
+  </dialog>
+  <dialog id="input-dialog"><form id="input-form"><h2 id="input-title">Rename layer</h2><label id="input-label"><span id="input-caption">Name</span><input id="input-value" autocomplete="off" maxlength="200" required></label><div class="dialog-actions"><button type="button" data-dismiss="input-dialog">Cancel</button><button class="primary" type="submit">Apply</button></div></form></dialog>
+  <dialog id="confirm-dialog"><h2>Save your changes?</h2><p class="dialog-description">Your composition has unsaved changes.</p><div class="dialog-actions"><button data-confirm="cancel">Cancel</button><button data-confirm="discard">Discard</button><button class="primary" data-confirm="save">Save</button></div></dialog>
+  <dialog id="error-dialog"><h2 id="error-title">Could not complete the action</h2><p id="error-message" class="dialog-description"></p><div class="dialog-actions"><button class="primary" data-dismiss="error-dialog">OK</button></div></dialog>
+</body>
+</html>

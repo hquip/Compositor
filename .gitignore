@@ -1,0 +1,54 @@
+# Build output
+dist/
+build/
+DerivedData/
+*.xcarchive
+*.dmg
+
+# Xcode per-user state
+xcuserdata/
+*.xcuserstate
+
+# macOS
+.DS_Store
+
+# Signing material and secrets — never commit
+*.p12
+*.p8
+*.cer
+*.certSigningRequest
+.env
+
+# Claude Code settings personal to this machine
+.claude/settings.local.json
+BUILD_PLAN.md
+
+# Windows desktop client
+desktop/node_modules/
+desktop/test-results/
+desktop/test-results*/
+desktop/playwright-report/
+desktop/.electron-download.zip
+desktop/test-runtime/
+desktop/windows/bin/
+desktop/windows/obj/
+desktop/desktop/
+desktop/renderer/vendor/
+CrossPlatformResults/
+*.xcresult/
+.env.*
+*.key
+*.pem
+
+# Dependency caches, generated test traces, and local build settings
+**/node_modules/
+**/__pycache__/
+*.py[cod]
+mobile/test-results*/
+mobile/native-test-results*/
+**/.gradle/
+**/.idea/
+*.mobileprovision
+*.jks
+*.keystore
+local.properties

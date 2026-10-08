@@ -1,0 +1,30 @@
+cmake_minimum_required(VERSION 3.20)
+project(CompositorEXR LANGUAGES C CXX)
+set(BUILD_SHARED_LIBS OFF CACHE BOOL "" FORCE)
+set(BUILD_TESTING OFF CACHE BOOL "" FORCE)
+set(OPENEXR_BUILD_TOOLS OFF CACHE BOOL "" FORCE)
+set(OPENEXR_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(OPENEXR_ENABLE_THREADING OFF CACHE BOOL "" FORCE)
+set(IMATH_BUILD_TESTS OFF CACHE BOOL "" FORCE)
+set(IMATH_BUILD_EXAMPLES OFF CACHE BOOL "" FORCE)
+set(IMATH_INSTALL OFF CACHE BOOL "" FORCE)
+set(OPENEXR_INSTALL OFF CACHE BOOL "" FORCE)
+set(OPENEXR_FORCE_INTERNAL_DEFLATE ON CACHE BOOL "" FORCE)
+set(OPENEXR_FORCE_INTERNAL_IMATH ON CACHE BOOL "" FORCE)
+add_subdirectory("${OPENEXR_SOURCE}" openexr)
+add_executable(compositor-exr bridge.cpp)
+target_compile_features(compositor-exr PRIVATE cxx_std_17)
+target_link_libraries(compositor-exr PRIVATE OpenEXR::OpenEXR)
+target_compile_options(compositor-exr PRIVATE -Oz -flto -fexceptions)
+target_link_options(compositor-exr PRIVATE -Oz -flto -fexceptions
+  "-sDISABLE_EXCEPTION_CATCHING=0" "-sALLOW_MEMORY_GROWTH=1" "-sMAXIMUM_MEMORY=1073741824"
+  "-sINITIAL_MEMORY=33554432" "-sSTACK_SIZE=1048576" "-sABORTING_MALLOC=0"
+  "-sMODULARIZE=1" "-sEXPORT_ES6=1" "-sENVIRONMENT=web,worker,node" "-sFILESYSTEM=0"
+  "-sEXPORTED_RUNTIME_METHODS=['UTF8ToString','stringToUTF8','lengthBytesUTF8','HEAPU8','HEAPF32']"
+  "-sEXPORTED_FUNCTIONS=['_malloc','_free','_exr_open','_exr_close','_exr_error','_exr_decode','_exr_width','_exr_height','_exr_samples','_exr_output_begin','_exr_output_add','_exr_output_finish','_exr_output_size']")
+set_target_properties(compositor-exr PROPERTIES SUFFIX ".mjs")
+add_executable(exr-reference-fixture "${CMAKE_CURRENT_SOURCE_DIR}/../../tests/openexr-deep-fixture.cpp")
+target_link_libraries(exr-reference-fixture PRIVATE OpenEXR::OpenEXR)
+target_compile_options(exr-reference-fixture PRIVATE -Oz -flto -fexceptions)
+target_link_options(exr-reference-fixture PRIVATE -Oz -flto -fexceptions "-sDISABLE_EXCEPTION_CATCHING=0" "-sMODULARIZE=1" "-sEXPORT_ES6=1" "-sENVIRONMENT=node" "-sEXPORTED_RUNTIME_METHODS=['FS']" "-sALLOW_MEMORY_GROWTH=1")
+set_target_properties(exr-reference-fixture PROPERTIES SUFFIX ".mjs")

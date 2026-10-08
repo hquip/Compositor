@@ -1,0 +1,84 @@
+name: Verify mobile
+on:
+  push:
+    paths: ['mobile/**', 'desktop/**', '.github/workflows/verify-mobile.yml']
+  pull_request:
+    paths: ['mobile/**', 'desktop/**', '.github/workflows/verify-mobile.yml']
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: mobile-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  android:
+    runs-on: ubuntu-24.04
+    timeout-minutes: 35
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: |
+            desktop/package-lock.json
+            mobile/package-lock.json
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+      - run: npm ci --ignore-scripts
+        working-directory: desktop
+      - run: npm ci --ignore-scripts
+        working-directory: mobile
+      - name: Build the shared mobile editor
+        working-directory: mobile
+        run: |
+          npm run build
+          node node_modules/@capacitor/cli/bin/capacitor sync android
+          npm test
+          node node_modules/@playwright/test/cli.js install --with-deps chromium webkit
+          npm run test:ui
+      - name: Build Android APK
+        working-directory: mobile/android
+        run: bash gradlew assembleDebug lintDebug --no-daemon
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Compositor-Android-debug
+          path: mobile/android/app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: mobile-test-results
+          path: |
+            mobile/test-results/
+            mobile/android/app/build/reports/
+  ios:
+    runs-on: macos-26
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: sudo xcode-select -s /Applications/Xcode_26.6.app
+      - run: npm ci --ignore-scripts
+        working-directory: desktop
+      - run: npm ci --ignore-scripts
+        working-directory: mobile
+      - working-directory: mobile
+        run: |
+          npm run build
+          node node_modules/@capacitor/cli/bin/capacitor sync ios
+      - name: Build iOS Simulator application
+        working-directory: mobile
+        run: >
+          xcodebuild build -project ios/App/App.xcodeproj -scheme App
+          -destination 'generic/platform=iOS Simulator' -configuration Debug
+          -derivedDataPath ios/DerivedData CODE_SIGNING_ALLOWED=NO
+      - uses: actions/upload-artifact@v7
+        with:
+          name: Compositor-iOS-Simulator
+          path: mobile/ios/DerivedData/Build/Products/Debug-iphonesimulator/App.app
+          if-no-files-found: error

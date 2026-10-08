@@ -1,0 +1,20 @@
+* text=auto
+*.swift text eol=lf
+*.js text eol=lf
+*.mjs text eol=lf
+*.cjs text eol=lf
+*.json text eol=lf
+*.yml text eol=lf
+*.yaml text eol=lf
+*.md text eol=lf
+*.sh text eol=lf
+*.ps1 text eol=crlf
+*.wasm -text
+*.onnx -text
+*.exr -text
+*.tif -text
+*.png -text
+*.jpg -text
+*.jpeg -text
+desktop/native/exr/prebuilt/* binary
+desktop/third-party/* -whitespace

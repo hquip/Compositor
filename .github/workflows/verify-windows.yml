@@ -1,0 +1,109 @@
+name: Cross-platform verification
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+concurrency:
+  group: cross-platform-${{ github.ref }}
+  cancel-in-progress: true
+
+permissions:
+  contents: read
+
+jobs:
+  windows:
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name != github.repository
+    runs-on: windows-2025
+    timeout-minutes: 30
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+      - name: Install dependencies
+        run: npm ci --ignore-scripts
+      - name: Build runtime assets and the Windows app
+        run: npm run build:win
+      - name: Test document and pixel operations
+        run: npm test
+      - name: Test the Windows editor and generate the Mac fixture
+        env:
+          COMPOSITOR_WRITE_MAC_FIXTURE: '1'
+        run: npm run test:ui
+      - name: Upload the Windows project and reference render
+        uses: actions/upload-artifact@v7
+        with:
+          name: Windows-compatibility-fixture
+          path: CompositorTests/Fixtures/WindowsRoundTrip*
+          if-no-files-found: error
+      - name: Build the portable Windows app
+        run: npm run dist:win
+      - name: Test the packaged executable
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          $env:COMPOSITOR_TEST_EXE = (Resolve-Path "../dist/windows/Compositor-$version/Compositor.exe").Path
+          node node_modules/@playwright/test/cli.js test -g 'native project save and reopen'
+      - name: Upload Windows app
+        uses: actions/upload-artifact@v7
+        with:
+          name: Compositor-Windows-x64
+          path: dist/windows/Compositor-Windows-*-x64.zip
+          if-no-files-found: error
+      - name: Upload UI test results
+        if: failure()
+        uses: actions/upload-artifact@v7
+        with:
+          name: Windows-test-results
+          path: desktop/test-results/
+
+  mac:
+    needs: windows
+    uses: ./.github/workflows/verify.yml
+    with:
+      windows-fixture: true
+
+  windows-round-trip:
+    needs: [windows, mac]
+    runs-on: windows-2025
+    timeout-minutes: 15
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci --ignore-scripts
+      - uses: actions/download-artifact@v7
+        with:
+          name: Compositor-Windows-x64
+          path: dist/windows
+      - uses: actions/download-artifact@v7
+        with:
+          name: Mac-compatibility-results
+          path: CrossPlatformResults
+      - name: Open the project saved by Mac in the packaged Windows editor
+        run: |
+          $version = (Get-Content package.json -Raw | ConvertFrom-Json).version
+          Expand-Archive -LiteralPath "../dist/windows/Compositor-Windows-$version-x64.zip" -DestinationPath '../dist/windows/round-trip'
+          $env:COMPOSITOR_TEST_EXE = (Resolve-Path "../dist/windows/round-trip/Compositor-$version/Compositor.exe").Path
+          $env:COMPOSITOR_MAC_ROUND_TRIP = (Resolve-Path '../CrossPlatformResults').Path
+          node node_modules/@playwright/test/cli.js test -g 'Mac-saved project'
+      - uses: actions/upload-artifact@v7
+        if: failure()
+        with:
+          name: Windows-round-trip-results
+          path: desktop/test-results/

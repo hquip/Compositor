@@ -1,0 +1,12 @@
+{
+  "openexr": "3.4.16",
+  "openexrCommit": "37d012e2faa04dbf00ca169682ee1eb6d9e8603e",
+  "emscripten": "4.0.18",
+  "imath": "3.2.2",
+  "libdeflate": "1.25",
+  "openjph": "0.31.0",
+  "files": {
+    "compositor-exr.mjs": "af8950ad82ca5f7d1000244b874337d0daae75c5f73a0d08495fa1e8124d6b97",
+    "compositor-exr.wasm": "a990da488045d4957502ea9cefe07bb348cf408e1dddacdd44494b78976be5ca"
+  }
+}

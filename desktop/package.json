@@ -1,0 +1,35 @@
+{
+  "name": "compositor-desktop",
+  "version": "0.10.0",
+  "private": true,
+  "description": "Windows desktop client for Compositor",
+  "author": "Compositor contributors",
+  "license": "MIT",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "start": "powershell -NoProfile -File scripts/start-windows.ps1",
+    "test": "node --test tests/*.test.mjs",
+    "test:ui": "playwright test",
+    "build:assets": "node scripts/bundle-vendor.mjs && powershell -NoProfile -File scripts/build-pixels.ps1 && node scripts/verify-assets.mjs",
+    "build:win": "npm run build:assets && dotnet build windows/Compositor.Windows.csproj --configuration Release",
+    "dist:win": "powershell -NoProfile -File scripts/build-windows.ps1"
+  },
+  "devDependencies": {
+    "@playwright/test": "1.63.0",
+    "esbuild": "0.28.2"
+  },
+  "dependencies": {
+    "ag-psd": "31.0.2",
+    "bidi-js": "1.1.0",
+    "fflate": "0.8.3",
+    "lcms-wasm": "1.0.4",
+    "libheif-js": "1.23.5",
+    "libraw-wasm": "1.6.0",
+    "linebreak": "1.1.0",
+    "onnxruntime-web": "1.30.0",
+    "utif": "3.1.0"
+  }
+}
