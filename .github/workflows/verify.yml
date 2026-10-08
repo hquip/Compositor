@@ -82,6 +82,15 @@ jobs:
           -only-testing:CompositorTests/FloatingPanelTests
           -only-testing:CompositorTests/SliderSnapTests
 
+      - name: Print failed test details
+        if: failure()
+        run: |
+          for bundle in ParallelResults.xcresult SerialResults.xcresult; do
+            if [ -d "$bundle" ]; then
+              xcrun xcresulttool get test-results summary --path "$bundle"
+            fi
+          done
+
       - name: Upload test results
         if: failure()
         uses: actions/upload-artifact@v7

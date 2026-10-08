@@ -1,3 +1,4 @@
+import { FORMAT_VERSION } from '../renderer/core.js';
 export function enhancementCases(test, expect, resolvePage, restart) {
   const create = (page, width = 128, height = 96) => page.evaluate(async ({ width, height }) => {
     const { editor: e } = await import('./app.js'), { surface } = await import('./raster.js'); e.newCanvas(width, height);
@@ -80,7 +81,7 @@ export function enhancementCases(test, expect, resolvePage, restart) {
     expect(await pixel(page, 15, 15)).toEqual([255, 0, 0, 255]); expect((await pixel(page, 105, 65))[3]).toBe(0); expect(await pixel(page, 90, 50)).toEqual([255, 0, 0, 255]);
     const id = (await list(page))[0].id; page = await reload(page); await recover(page, id); await expect(page.getByRole('button', { name: 'Apply transform', exact: true })).toBeVisible();
     await page.getByRole('button', { name: 'Apply transform', exact: true }).click();
-    expect(await page.evaluate(async () => { const e = (await import('./app.js')).editor; return { size: [e.images.get(e.active.id).width, e.images.get(e.active.id).height], history: e.history.past.length, pending: !!e.floatingDraft, version: e.projectSnapshot().manifest.version }; })).toEqual({ size: [160, 120], history: 1, pending: false, version: 15 });
+    expect(await page.evaluate(async () => { const e = (await import('./app.js')).editor; return { size: [e.images.get(e.active.id).width, e.images.get(e.active.id).height], history: e.history.past.length, pending: !!e.floatingDraft, version: e.projectSnapshot().manifest.version }; })).toEqual({ size: [160, 120], history: 1, pending: false, version: FORMAT_VERSION });
     await page.evaluate(async () => (await import('./app.js')).runCommand('undo'));
     expect(await page.evaluate(async () => { const e = (await import('./app.js')).editor; return e.assets[e.active.imageFile]; })).toBe(before.original);
     await page.evaluate(async () => (await import('./app.js')).runCommand('redo')); expect(await pixel(page, 90, 50)).toEqual([255, 0, 0, 255]);

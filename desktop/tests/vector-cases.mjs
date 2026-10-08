@@ -1,3 +1,4 @@
+import { FORMAT_VERSION } from '../renderer/core.js';
 export function vectorCases(test, expect, resolvePage, restart, nativeTap) {
   const setup = (page, pixels = false) => page.evaluate(async (pixels) => { const { editor: e } = await import('./app.js'); e.newCanvas(128, 96); if (pixels) { const { surface } = await import('./raster.js'), canvas = surface(128, 96); canvas.getContext('2d').fillStyle = '#ff0000'; canvas.getContext('2d').fillRect(0, 0, 128, 96); e.storePixels(e.active, canvas); } e.update(); }, pixels);
   const pixel = (page, x, y) => page.evaluate(async ({ x, y }) => [...(await import('./app.js')).editor.composite(true).getContext('2d').getImageData(x, y, 1, 1).data], { x, y });
@@ -16,7 +17,7 @@ export function vectorCases(test, expect, resolvePage, restart, nativeTap) {
     for (const [x, y] of [[20, 20], [100, 20], [100, 70], [20, 70], [20, 20]]) await tap(page, x, y);
     await page.locator('.path-controls [data-command="path-apply"]').click();
     expect((await pixel(page, 50, 40))[3]).toBe(255);
-    expect(await page.evaluate(async () => { const e = (await import('./app.js')).editor, snapshot = e.projectSnapshot(); await e.install(snapshot); return { nodes: e.active.vectorPath.contours[0].nodes.length, closed: e.active.vectorPath.contours[0].closed, version: snapshot.manifest.version, undo: e.history.past.length }; })).toEqual({ nodes: 4, closed: true, version: 15, undo: 1 });
+    expect(await page.evaluate(async () => { const e = (await import('./app.js')).editor, snapshot = e.projectSnapshot(); await e.install(snapshot); return { nodes: e.active.vectorPath.contours[0].nodes.length, closed: e.active.vectorPath.contours[0].closed, version: snapshot.manifest.version, undo: e.history.past.length }; })).toEqual({ nodes: 4, closed: true, version: FORMAT_VERSION, undo: 1 });
     await page.evaluate(async () => (await import('./app.js')).runCommand('undo')); expect((await pixel(page, 50, 40))[3]).toBe(0);
     await page.evaluate(async () => (await import('./app.js')).runCommand('redo')); expect((await pixel(page, 50, 40))[3]).toBe(255);
   });

@@ -1,3 +1,4 @@
+import { FORMAT_VERSION } from '../renderer/core.js';
 export function professionalCases(test, expect, resolvePage, restart) {
   async function setup(page) { return page.evaluate(async () => { const { editor: e } = await import('./app.js'), { surface } = await import('./raster.js'); e.newCanvas(96, 64); const canvas = surface(96, 64), ctx = canvas.getContext('2d'); ctx.fillStyle = '#ff0000'; ctx.fillRect(0, 0, 96, 64); e.storePixels(e.active, canvas); e.update(); return e.assets[e.active.imageFile]; }); }
   const pixel = (page, x = 20, y = 20) => page.evaluate(async ({ x, y }) => [...(await import('./app.js')).editor.composite(true).getContext('2d').getImageData(x, y, 1, 1).data], { x, y });
@@ -7,7 +8,7 @@ export function professionalCases(test, expect, resolvePage, restart) {
     await expect(page.locator('.filter-stack-dialog [role="status"]')).toHaveText('Preview ready'); expect(await pixel(page)).toEqual([0, 255, 255, 255]);
     await page.locator('.filter-stack-dialog').getByRole('button', { name: 'Apply', exact: true }).click(); await page.evaluate(() => window.edit);
     const stored = await page.evaluate(async () => { const e = (await import('./app.js')).editor; const snapshot = e.projectSnapshot(); await e.install(snapshot, true); return { version: snapshot.manifest.version, filters: e.active.filters.length, original: e.assets[e.active.filterSourceFile] }; });
-    expect(stored).toEqual({ version: 15, filters: 1, original });
+    expect(stored).toEqual({ version: FORMAT_VERSION, filters: 1, original });
     const committed = await pixel(page);
     await page.evaluate(async () => { window.edit = (await import('./app.js')).runCommand('edit-filters'); });
     await page.getByRole('checkbox', { name: 'Enable filter' }).uncheck();

@@ -1,3 +1,4 @@
+import { FORMAT_VERSION } from '../renderer/core.js';
 export function filterMaskCases(test, expect, resolvePage, restart, nativeTap) {
   const setup = (page) => page.evaluate(async () => { const { editor: e } = await import('./app.js'), { surface } = await import('./raster.js'); e.newCanvas(96, 64); const image = surface(96, 64), ctx = image.getContext('2d'); ctx.fillStyle = '#ff0000'; ctx.fillRect(0, 0, 96, 64); e.storePixels(e.active, image); e.selection = { x: 0, y: 0, width: 48, height: 64 }; e.update(); });
   const pixel = (page, x) => page.evaluate(async (x) => [...(await import('./app.js')).editor.composite(true).getContext('2d').getImageData(x, 20, 1, 1).data], x);
@@ -10,7 +11,7 @@ export function filterMaskCases(test, expect, resolvePage, restart, nativeTap) {
     await page.getByRole('spinbutton', { name: 'Filter opacity', exact: true }).fill('50'); await page.getByRole('spinbutton', { name: 'Filter opacity', exact: true }).press('Tab'); await expect.poll(() => pixel(page, 20)).toEqual([128, 128, 128, 255]);
     await page.getByRole('checkbox', { name: 'Enable filter mask', exact: true }).uncheck(); await expect.poll(() => pixel(page, 70)).toEqual([128, 128, 128, 255]); await page.getByRole('checkbox', { name: 'Enable filter mask', exact: true }).check();
     await apply(page);
-    const snapshot = await page.evaluate(async () => { const e = (await import('./app.js')).editor, snapshot = e.projectSnapshot(); await e.install(snapshot); return snapshot; }); expect(snapshot.manifest.version).toBe(15);
+    const snapshot = await page.evaluate(async () => { const e = (await import('./app.js')).editor, snapshot = e.projectSnapshot(); await e.install(snapshot); return snapshot; }); expect(snapshot.manifest.version).toBe(FORMAT_VERSION);
     expect(snapshot.assets[snapshot.manifest.layers[0].filters[0].maskFile]).toBeTruthy(); expect(await pixel(page, 70)).toEqual([255, 0, 0, 255]);
     await page.evaluate(async () => (await import('./app.js')).runCommand('undo')); expect(await pixel(page, 20)).toEqual([255, 0, 0, 255]);
   });

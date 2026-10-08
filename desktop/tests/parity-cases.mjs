@@ -1,3 +1,4 @@
+import { FORMAT_VERSION } from '../renderer/core.js';
 export function parityCases(test, expect, resolvePage) {
   async function create(page, width = 160, height = 120) { await page.evaluate(async ({ width, height }) => { (await import('./app.js')).editor.newCanvas(width, height); }, { width, height }); }
   async function tool(page, name) { await page.evaluate((name) => { document.querySelector(`[data-tool="${name}"]`).click(); return new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve))); }, name); }
@@ -34,7 +35,7 @@ export function parityCases(test, expect, resolvePage) {
     await page.evaluate(async () => { const e = (await import('./app.js')).editor; e.editMask = true; e.color = '#000000'; }); await page.getByLabel('Gradient style').selectOption('Foreground to Background');
     await drag(page, .5, 10, 100.5, 10);
     const saved = await page.evaluate(async () => { const e = (await import('./app.js')).editor, snapshot = e.projectSnapshot(); return { version: snapshot.manifest.version, mask: !!snapshot.manifest.layers[0].maskFile, undo: e.history.past.length, pending: !!e.gradientDraft }; });
-    expect(saved).toEqual({ version: 15, mask: true, undo: 1, pending: false }); expect((await pixel(page, 0, 10))[3]).toBeLessThan(4); expect((await pixel(page, 100, 10))[3]).toBeGreaterThan(250);
+    expect(saved).toEqual({ version: FORMAT_VERSION, mask: true, undo: 1, pending: false }); expect((await pixel(page, 0, 10))[3]).toBeLessThan(4); expect((await pixel(page, 100, 10))[3]).toBeGreaterThan(250);
     await page.evaluate(async () => { await (await import('./app.js')).runCommand('undo'); }); expect(await pixel(page, 0, 10)).toEqual([255, 0, 0, 255]);
   });
 
