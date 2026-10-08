@@ -31,6 +31,7 @@
     "ag-psd": "31.0.2",
     "bidi-js": "1.1.0",
     "fflate": "0.8.3",
+    "graphemer": "1.4.0",
     "lcms-wasm": "1.0.4",
     "libheif-js": "1.23.5",
     "libraw-wasm": "1.6.0",

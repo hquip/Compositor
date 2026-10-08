@@ -4,6 +4,10 @@ import { copyFile, mkdir, readFile, writeFile } from 'node:fs/promises';
 import { createHash } from 'node:crypto';
 const root = fileURLToPath(new URL('..', import.meta.url));
 const exrRuntime = JSON.parse(await readFile(root + '/native/exr/runtime.json', 'utf8'));
+await mkdir(root + '/renderer/vendor', { recursive: true });
+await build({ entryPoints: [root + '/vendor/legacy-entry.js'], outfile: root + '/renderer/vendor/legacy.js', bundle: true, minify: true,
+  format: 'esm', platform: 'browser', target: 'es2022', legalComments: 'eof' });
+await copyFile(root + '/node_modules/graphemer/LICENSE', root + '/third-party/Graphemer-LICENSE.txt');
 await mkdir(root + '/renderer/vendor/openexr', { recursive: true });
 await mkdir(root + '/renderer/vendor/quickjs', { recursive: true });
 await build({ entryPoints: [root + '/vendor/quickjs-entry.js'], outfile: root + '/renderer/vendor/quickjs/quickjs.js', bundle: true, minify: true,

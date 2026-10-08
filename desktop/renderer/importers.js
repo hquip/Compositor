@@ -3,6 +3,8 @@ import { parsePhotoshopExtended } from './photoshop-extended.js';
 import { parsePhotoshopArtboards } from './photoshop-artboards.js';
 import { retainResources } from './workflow-assets.js';
 import { decodeOpenRaster } from './openraster.js';
+import { pickFile } from './color-workflows.js';
+import { photoshopProfile } from './photoshop-extended.js';
 import { surface } from './raster.js';
 import { applyCameraRaw } from './adjustments.js';
 import { decodeImage } from './compose.js';
@@ -35,7 +37,12 @@ export async function importFiles(editor, files) {
         continue;
       }
       const used = [...editor.images.values(), ...editor.masks.values()].reduce((sum, image) => sum + image.width * image.height, 0);
-      const parsed = await parsePhotoshopExtended(file.data, editor.pixelBudget - used);
+      let profile;
+      const photoshopBytes = base64Bytes(file.data);
+      if (new DataView(photoshopBytes.buffer, photoshopBytes.byteOffset, photoshopBytes.byteLength).getUint16(24) === 4 && !photoshopProfile(photoshopBytes)) {
+        const chosen = await pickFile('.icc,.icm'); if (!chosen) continue; profile = new Uint8Array(await chosen.arrayBuffer());
+      }
+      const parsed = await parsePhotoshopExtended(file.data, editor.pixelBudget - used, profile);
       const summary = document.createElement('dialog'); const title = document.createElement('h2'); title.textContent = 'Photoshop conversion';
       const text = document.createElement('p'); text.className = 'dialog-description'; text.textContent = `${parsed.snapshot.manifest.width} × ${parsed.snapshot.manifest.height} px · ${parsed.snapshot.manifest.layers.length} layers\n\n` + (parsed.report.join('\n') || 'Layers, masks, blend modes and supported editable content are preserved.');
       const actions = document.createElement('div'); actions.className = 'dialog-actions'; for (const label of ['Cancel', 'Import']) { const button = document.createElement('button'); button.textContent = label; button.addEventListener('click', () => summary.close(label)); actions.append(button); } summary.append(title, text, actions); document.body.append(summary); summary.showModal();

@@ -4,6 +4,7 @@ The Windows application remains under the repository MIT license. Its third-part
 
 - **QuickJS-emscripten 0.32.0** — MIT, Jake Teton-Landis and QuickJS contributors. Used as a separate WebAssembly interpreter for image plugins, with memory/stack/CPU limits and no host IO bindings. Source: <https://github.com/justjake/quickjs-emscripten>. License in `QuickJS-emscripten-LICENSE.txt`.
 - **Tauri 2** and dialog/clipboard plugins — MIT/Apache-2.0, Tauri contributors. The compatible Linux/macOS host uses the operating system WebView. Exact Rust dependencies are recorded in `src-tauri/Cargo.lock`; JavaScript dependencies in `package-lock.json`. Source: <https://github.com/tauri-apps/tauri>.
+- **Graphemer 1.4.0** — MIT, Flmnt and contributors; Unicode grapheme segmentation fallback for older WebKit. Source: <https://github.com/flmnt/graphemer>. License in `Graphemer-LICENSE.txt`.
 
 - **jSquash WebP 1.5.0** — Apache-2.0 JavaScript wrapper and libwebp WebAssembly codec derived from Squoosh; source: <https://github.com/jamsinclair/jSquash/tree/main/packages/webp>. Wrapper license in `jSquash-WebP-LICENSE.txt`; the codec's BSD license is in `libwebp-LICENSE.txt`.
 
