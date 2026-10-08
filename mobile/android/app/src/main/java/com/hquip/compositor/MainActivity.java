@@ -14,6 +14,7 @@ import java.util.Map;
 public class MainActivity extends BridgeActivity {
     @Override
     public void onCreate(Bundle savedInstanceState) {
+        registerPlugin(CompositorClipboardPlugin.class);
         super.onCreate(savedInstanceState);
         if (bridge == null) return;
         getWindow().getDecorView().setBackgroundColor(Color.rgb(36, 36, 38));

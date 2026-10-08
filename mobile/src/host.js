@@ -13,6 +13,7 @@ import { decodeTiff } from './tiff.js';
 import { installMobileLayout } from './layout.js';
 const library = new ProjectLibrary(Filesystem, Directory.Data), sessions = new Map(), listeners = new Set();
 const nativeImages = registerPlugin('CompositorImages');
+const nativeClipboard = registerPlugin('CompositorClipboard');
 if (!crypto.randomUUID) crypto.randomUUID = () => {
   const bytes = crypto.getRandomValues(new Uint8Array(16)); bytes[6] = (bytes[6] & 15) | 64; bytes[8] = (bytes[8] & 63) | 128;
   const hex = [...bytes].map((byte) => byte.toString(16).padStart(2, '0')).join(''); return `${hex.slice(0, 8)}-${hex.slice(8, 12)}-${hex.slice(12, 16)}-${hex.slice(16, 20)}-${hex.slice(20)}`;
@@ -94,7 +95,10 @@ window.desktop = Object.freeze({
   reloadProject: (id) => result(async () => { const record = (await library.list()).find((project) => project.id === sessions.get(id)); return record ? library.read(record) : null; }),
   copyImage: (data) => result(() => Clipboard.write({ image: data })),
   developRaw: Capacitor.getPlatform() === 'ios' ? (file, settings) => nativeImages.developRaw({ data: file.data, extension: file.extension ?? 'raw', settings: settings ?? null }) : null,
-  pasteImage: () => result(async () => { const value = await Clipboard.read(); return value.type.startsWith('image/') ? value.value : null; }),
+  pasteImage: () => result(async () => {
+    if (Capacitor.isNativePlatform() && Capacitor.getPlatform() === 'android') return (await nativeClipboard.readImage()).data ?? null;
+    const value = await Clipboard.read(); return value.type.startsWith('image/') ? value.value : null;
+  }),
   limits: async () => ({ ok: true, value: { documentPixels: MOBILE_PIXELS, surfacePixels: 16000000, maxSide: 8192 } }),
   setDocumentState: (next) => { state = { ...next, sessionID: next.sessionID ?? state.sessionID }; if (next.openedPath && state.sessionID) sessions.set(state.sessionID, next.openedPath); },
   setLanguage: () => {}, closeProject: (id) => sessions.delete(id),

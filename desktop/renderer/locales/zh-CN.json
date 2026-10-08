@@ -916,5 +916,8 @@
   "WebP export supports up to 16 megapixels and 16,383 pixels per side.": "WebP 导出最多支持 1600 万像素，单边不超过 16,383 像素。",
   "Invalid WebP export settings.": "WebP 导出设置无效。",
   "Could not start the WebP encoder.": "无法启动 WebP 编码器。",
-  "WebP encoding failed.": "WebP 编码失败。"
+  "WebP encoding failed.": "WebP 编码失败。",
+  "The clipboard image exceeds the file-size limit.": "剪贴板图像超过文件大小上限。",
+  "The clipboard image exceeds the supported dimensions.": "剪贴板图像超过支持的尺寸。",
+  "Could not read the clipboard image.": "无法读取剪贴板图像。"
 }

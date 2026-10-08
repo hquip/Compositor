@@ -272,7 +272,7 @@ extension EditorSession {
     }
 
     /// Normalizes an image from another app to the working sRGB RGBA format.
-    private static func sRGBCopy(of image: CGImage) throws -> CGImage {
+    static func sRGBCopy(of image: CGImage) throws -> CGImage {
         let context = try BrushRaster.context(width: image.width, height: image.height, mask: false)
         BrushRaster.draw(image, in: CGRect(x: 0, y: 0, width: image.width, height: image.height), mask: false, context: context)
         guard let copy = context.makeImage() else { throw ExportError.render }
