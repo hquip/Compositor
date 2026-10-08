@@ -41,7 +41,7 @@ actor ImageExporter {
                 guard let layer = records[id], let image = snapshot.images[id]?.image else { return }
                 let opacity = layer.effectiveOpacity(in: records)
                 let mask = snapshot.mask(for: layer).flatMap { $0.clipImage(placement: $0.placement, over: layer.transform, width: image.width, height: image.height) }
-                let effects = LayerEffectsRenderer.cached(image, mask: mask, effects: layer.effects, fill: layer.fillOpacity ?? 1)
+                let effects = LayerEffectsRenderer.cached(image, mask: mask, effects: layer.effects, fillOpacity: layer.fillOpacity ?? 1)
                 func drawLayer(_ mode: LayerBlendMode, _ into: CGContext) {
                     if let effects {
                         let grown = LayerEffectsRenderer.placed(layer.transform, image: effects.image, inset: effects.inset)

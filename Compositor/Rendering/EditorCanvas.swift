@@ -1010,7 +1010,7 @@ final class CanvasView: NSView {
             if layer.fillOpacity != 1, stroke == nil, let image = layer.asset?.image {
                 let transform = session.displayedTransform(for: layer)
                 let mask = layer.mask?.clipImage(placement: layer.maskTransform, over: transform, width: image.width, height: image.height)
-                if let rendered = LayerEffectsRenderer.cached(image, mask: mask, effects: layer.effects, fill: layer.fillOpacity) {
+                if let rendered = LayerEffectsRenderer.cached(image, mask: mask, effects: layer.effects, fillOpacity: layer.fillOpacity) {
                     let grown = LayerEffectsRenderer.placed(transform, image: rendered.image, inset: rendered.inset)
                     LayerRenderer.draw(rendered.image, transform: grown, center: center(grown.center), scale: scale, opacity: opacity, blendMode: blendMode(of: layer), mask: nil, in: context)
                 }
