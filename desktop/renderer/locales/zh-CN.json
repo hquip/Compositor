@@ -949,6 +949,8 @@
   "Inspect": "查看",
   "Fill": "填充",
   "Paint channel": "通道绘画",
+  "The channel edit exceeds the document pixel budget.": "通道编辑超出项目像素限制。",
+  "The mask exceeds the document pixel budget.": "蒙版超出项目像素限制。",
   "Perspective crop": "透视裁剪",
   "Collage": "拼图",
   "Canvas width": "画布宽度",

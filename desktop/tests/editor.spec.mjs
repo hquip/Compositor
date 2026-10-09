@@ -21,6 +21,8 @@ import { advancedEXRCases } from './exr-advanced-cases.mjs';
 import { professionalCases } from './professional-cases.mjs';
 import { upstreamEnhancementCases } from './upstream-enhancement-cases.mjs';
 import { fullWorkflowCases } from './full-workflow-cases.mjs';
+import { channelRegressionCases } from './channel-regression-cases.mjs';
+import { standardOpenRaster } from './openraster-fixture.mjs';
 
 const root = fileURLToPath(new URL('..', import.meta.url));
 let application, browser, page, directory, errors;
@@ -34,6 +36,7 @@ enhancementCases(test, expect, () => page);
 professionalCases(test, expect, () => page);
 upstreamEnhancementCases(test, expect, () => page);
 fullWorkflowCases(test, expect, () => page);
+channelRegressionCases(test, expect, () => page);
 
 async function freePort() {
   const server = net.createServer();
@@ -130,6 +133,16 @@ test('native EXR advanced exports visible layers as PIZ tiled parts', async () =
   const target = path.join(directory, 'Parts.exr'); await dialogs({ save: target }); await page.evaluate(async () => { window.multiEXR = (await import('./app.js')).runCommand('export-exr'); });
   await page.locator('[data-setting="parts"]').selectOption('Visible layers as parts'); await page.locator('[data-setting="layout"]').selectOption('Tiled'); await page.locator('dialog[open]').last().getByRole('button', { name: 'Apply', exact: true }).click(); await page.evaluate(() => window.multiEXR);
   const { decodeEXR } = await import('../renderer/exr-codec.js'); expect((await decodeEXR(new Uint8Array(await fs.readFile(target)), { part: 1 })).data[4]).toBe(10);
+});
+
+test('OpenRaster: native image picker imports a standard archive and exports its editable layers', async () => {
+  const source = path.join(directory, 'Interchange.ORA'); await fs.writeFile(source, standardOpenRaster()); await dialogs({ open: source }); await page.evaluate(async () => (await import('./app.js')).runCommand('import'));
+  const inspect = () => page.evaluate(async () => { const e = (await import('./app.js')).editor, image = e.composite(true), pixel = (x, y) => [...image.getContext('2d').getImageData(x, y, 1, 1).data]; return { size: [e.manifest.width, e.manifest.height], layers: e.manifest.layers.map((l) => l.name), grouped: e.manifest.layers.slice(1).every((l) => l.parentID === e.manifest.layers[0].id), red: pixel(2, 3), blue: pixel(6, 5), clear: pixel(0, 0) }; });
+  const expected = { size: [16, 12], layers: ['Artwork', 'Red', 'Blue'], grouped: true, red: [255, 0, 0, 255], blue: [0, 0, 255, 255], clear: [0, 0, 0, 0] }; expect(await inspect()).toEqual(expected);
+  const projectTarget = path.join(directory, 'Interchange.comp'); await dialogs({ save: projectTarget }); await page.evaluate(async () => (await import('./app.js')).runCommand('save')); expect((await store.readProject(projectTarget)).manifest.layers).toHaveLength(3);
+  const target = path.join(directory, 'Export.ora'); await dialogs({ save: target }); await page.evaluate(async () => (await import('./app.js')).runCommand('export-ora'));
+  const { unzipSync } = await import('fflate'), files = unzipSync(new Uint8Array(await fs.readFile(target))); expect(new TextDecoder().decode(files.mimetype)).toBe('image/openraster'); expect(new TextDecoder().decode(files['stack.xml'])).toContain('Artwork');
+  await dialogs({ open: target }); await page.evaluate(async () => (await import('./app.js')).runCommand('import')); expect(await inspect()).toEqual(expected);
 });
 
 test('native PSD export writes a layered document through the Windows save dialog', async () => {

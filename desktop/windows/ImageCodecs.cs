@@ -17,7 +17,7 @@ namespace Compositor.Windows
             var info = new FileInfo(filename);
             if (info.Length > 1024L * 1024 * 1024) throw new InvalidDataException("The selected image exceeds the 1 GiB file limit.");
             if (extension == ".exr" && info.Length > 256L * 1024 * 1024) throw new InvalidDataException("The HDR source file is too large.");
-            var kind = extension == ".exr" ? "openexr" : extension == ".psd" || extension == ".psb" ? "photoshop" : extension == ".heic" || extension == ".heif" || extension == ".hif" ? "heif" : RawExtensions.Contains(extension) ? "raw" : null;
+            var kind = extension == ".exr" ? "openexr" : extension == ".ora" ? "openraster" : extension == ".psd" || extension == ".psb" ? "photoshop" : extension == ".heic" || extension == ".heif" || extension == ".hif" ? "heif" : RawExtensions.Contains(extension) ? "raw" : null;
             if (kind != null) return new { name, kind, data = Convert.ToBase64String(File.ReadAllBytes(filename)) };
             var native = new Dictionary<string, string> { [".png"] = "image/png", [".jpg"] = "image/jpeg", [".jpeg"] = "image/jpeg", [".webp"] = "image/webp", [".bmp"] = "image/bmp" };
             if (native.TryGetValue(extension, out var mime)) return new { name, kind = "image", data = "data:" + mime + ";base64," + Convert.ToBase64String(File.ReadAllBytes(filename)) };

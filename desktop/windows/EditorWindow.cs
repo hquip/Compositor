@@ -319,7 +319,7 @@ namespace Compositor.Windows
                     var testFile = TestPath("open"); string[] filenames = testFile == null ? new string[0] : new[] { testFile };
                     if (!test)
                     {
-                        using var picker = new OpenFileDialog { Title = ui.Get("Import Images"), Multiselect = true, Filter = ui.Get("Images and Photoshop projects") + "|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.psd;*.psb;*.exr;*.tif;*.tiff;*.heic;*.heif;*.hif;*.svg;*.dng;*.cr2;*.cr3;*.crw;*.nef;*.nrw;*.arw;*.sr2;*.raf;*.orf;*.rw2;*.pef;*.3fr;*.fff;*.iiq;*.kdc;*.dcr;*.mos;*.mrw;*.raw;*.rwl;*.srw;*.x3f|" + ui.Get("All files") + "|*.*" };
+                        using var picker = new OpenFileDialog { Title = ui.Get("Import Images"), Multiselect = true, Filter = ui.Get("Images and Photoshop projects") + "|*.png;*.jpg;*.jpeg;*.webp;*.bmp;*.psd;*.psb;*.ora;*.exr;*.tif;*.tiff;*.heic;*.heif;*.hif;*.svg;*.dng;*.cr2;*.cr3;*.crw;*.nef;*.nrw;*.arw;*.sr2;*.raf;*.orf;*.rw2;*.pef;*.3fr;*.fff;*.iiq;*.kdc;*.dcr;*.mos;*.mrw;*.raw;*.rwl;*.srw;*.x3f|" + ui.Get("All files") + "|*.*" };
                         if (picker.ShowDialog(this) != DialogResult.OK) return null; filenames = picker.FileNames;
                     }
                     return await Task.Run<object>(() =>

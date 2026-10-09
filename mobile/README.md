@@ -1,6 +1,6 @@
 # Compositor for Android and iOS — 0.10.0 preview
 
-Preview 0.10.0 adds PIZ/tiled/multipart OpenEXR, retained Deep originals with depth-range previews and original-file export, configurable linear HDR working spaces and extended WebGPU HDR display with SDR fallback. New saves use format 16. See [OpenEXR and HDR](../docs/openexr.md).
+Preview 0.10.0 adds PIZ/tiled/multipart OpenEXR, retained Deep originals with depth-range previews and original-file export, configurable linear HDR working spaces and extended WebGPU HDR display with SDR fallback. Current saves use format 17, including channel/ICC/LUT workflow resources. See [OpenEXR and HDR](../docs/openexr.md) and [feature acceptance and limits](../docs/full-feature-acceptance.md).
 
 Preview 0.9.0 adds OpenEXR HALF/FLOAT import/export, channel-group selection, offset windows and linear color conversion for sRGB, Rec.2020, P3-D65 and ACES spaces. See [OpenEXR workflows](../docs/openexr.md) for supported compression, alpha handling and limits.
 
@@ -8,7 +8,7 @@ Preview 0.8.0 adds embedded raster smart objects, shared source replacement/cont
 
 Preview 0.7.0 adds independent filter masks and opacity, selection/paint mask controls, source-preserving sixteen-bit mixing and mask-aware presets/actions/recovery. See [filter masks](../docs/filter-masks.md).
 
-Preview 0.6.0 adds editable Bézier paths, compound contours, vector-backed masks and phone path controls. New saves use format 16. See [vector workflows](../docs/vector-workflows.md) for controls, cache behavior and remaining native/platform limits.
+Preview 0.6.0 adds editable Bézier paths, compound contours, vector-backed masks and phone path controls. See [vector workflows](../docs/vector-workflows.md) for controls, cache behavior and remaining native/platform limits.
 
 Both native projects are in this directory. Capacitor hosts the same local editor and `.comp` model as the Windows application, with phone/tablet layout, a collapsible inspector, touch painting, two-finger pan/zoom, native file selection, native storage, clipboard, and the system share sheet. No editing service or image upload is required.
 
@@ -24,9 +24,9 @@ Select **English** or **简体中文** at the top right. The setting survives re
 
 ## Projects and exports
 
-Preview 0.5.0 shares editable filter stacks, mask refinement, PSD/PSB export, 16-bit sources, ICC soft proofing and TIFF export, pen controls, font substitution, presets, actions, snapshots and batch export with Windows. See [professional-workflows.md](../docs/professional-workflows.md) for limits. Native iOS compilation and device acceptance remain outstanding.
+Preview 0.5.0 shares editable filter stacks, mask refinement, PSD/PSB export, 16-bit sources, ICC soft proofing and TIFF export, pen controls, font substitution, presets, actions, snapshots and batch export with Windows. See [professional-workflows.md](../docs/professional-workflows.md) for limits. Native iOS Simulator compilation has passed CI; physical iOS device acceptance remains outstanding.
 
-**Save** stores a project on the device. **Open** shows the local library and can import a project ZIP. **File → Share project** shares a `.comp.zip` containing a version 15 `.comp` directory, including filter originals. Use updated clients to open it; versions 1–14 remain importable. To bring a desktop project to a phone, ZIP the entire `.comp` folder, then import it.
+**Save** stores a project on the device. **Open** shows the local library and can import a project ZIP. **File → Share project** shares a `.comp.zip` containing a version 17 `.comp` directory, including filter originals and workflow resources. Use updated clients to open it; versions 1–16 remain importable. To bring a desktop project to a phone, ZIP the entire `.comp` folder, then import it. The ordinary image picker also opens OpenRaster `.ora` archives; OpenRaster exports use the system share sheet.
 
 PNG/JPEG exports use the native share sheet and retain document resolution. TIFF is decoded locally rather than relying on browser support. iOS camera RAW has a Core Image decoder bridge; its native build and camera coverage still require Mac/iPhone verification.
 
@@ -71,4 +71,4 @@ Installing on an iPhone requires your Apple signing team. No signing credentials
 
 Android APK compilation and lint completed; native emulator checks cover actual touch painting, filesystem persistence, cold restart, language preference and RAW decoding. Shared editing-parity cases also run inside the actual Android WebView with `npm run test:android`; its emulator serial is controlled by `COMPOSITOR_ANDROID_SERIAL`. Chromium/WebKit tests cover phone/landscape layouts, sheets, bilingual editing, file workflows and the shared editing cases. Multi-touch protocol injection runs in Chromium and is skipped in WebKit. Six archive/export checks cover version 11 round-trip, unsafe files, interrupted saves, text-range validation and resolution metadata.
 
-Feature parity is still tracked in [`docs/windows-migration.md`](../docs/windows-migration.md). Native share sheets, physical devices, stylus behavior, camera-specific RAW support, and resource use need broader device testing. The mobile CI workflow is prepared locally and has not run or been pushed.
+Feature parity is still tracked in [`docs/windows-migration.md`](../docs/windows-migration.md) and [`docs/full-feature-acceptance.md`](../docs/full-feature-acceptance.md). Native share sheets, physical devices, stylus behavior, camera-specific RAW support, and resource use need broader device testing. [Mobile CI at commit `9c8d52e`](https://github.com/hquip/Compositor/actions/runs/37884565253) passed shared browser tests, Android APK/lint and the unsigned iOS Simulator build. New changes must pass their own CI.

@@ -1,4 +1,4 @@
-import { canvasSize, documentPoint, localPoint } from './core.js';
+import { canvasSize, documentPoint, localPoint, documentPixels } from './core.js';
 import { surface, copySurface } from './raster.js';
 import { affine, inverse, multiply } from './affine.js';
 import { storeMask, selectionCanvas } from './masks.js';
@@ -53,6 +53,8 @@ export function rasterTarget(editor, layer, isMask = false, region = null) {
   let width = source?.width ?? Math.ceil(original.size[0]), height = source?.height ?? Math.ceil(original.size[1]);
   if (isMask && source?.width === 1 && source?.height === 1) {
     width = editor.images.get(layer.id)?.width ?? Math.ceil(original.size[0]); height = editor.images.get(layer.id)?.height ?? Math.ceil(original.size[1]);
+    canvasSize(width, height);
+    if (documentPixels(editor) - 1 + width * height > editor.pixelBudget) throw new Error('The mask exceeds the document pixel budget.');
     const expanded = surface(width, height), context = expanded.getContext('2d'); context.fillStyle = `rgba(255,255,255,${maskOutside(source)})`; context.fillRect(0, 0, width, height); source = expanded;
   }
   let left = 0, top = 0, right = width, bottom = height;

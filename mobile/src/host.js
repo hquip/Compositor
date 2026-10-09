@@ -79,19 +79,19 @@ window.desktop = Object.freeze({
     } finally { saving = false; }
   }),
   importImages: () => result(async () => {
-    const files = await picker('image/*,.exr,.psd,.psb,.heic,.heif,.dng,.cr2,.nef,.arw,.raf', true), images = [];
+    const files = await picker('image/*,.ora,image/openraster,.exr,.psd,.psb,.heic,.heif,.dng,.cr2,.nef,.arw,.raf', true), images = [];
     for (const file of files) {
       if (file.size > 128 * 1024 * 1024) throw new Error('The selected image is too large.');
       const extension = file.name.split('.').at(-1).toLowerCase(), name = file.name.replace(/\.[^.]+$/, ''), data = base64(new Uint8Array(await file.arrayBuffer()));
       if (extension === 'tif' || extension === 'tiff') { images.push({ name, kind: 'image', data: decodeTiff(unbase64(data)) }); continue; }
-      const kind = extension === 'exr' ? 'openexr' : /^(psd|psb)$/.test(extension) ? 'photoshop' : /^(heic|heif|hif)$/.test(extension) ? 'heif' : /^(dng|cr2|cr3|nef|nrw|arw|raf|orf|rw2|pef|raw)$/.test(extension) ? 'raw' : 'image';
+      const kind = extension === 'exr' ? 'openexr' : extension === 'ora' ? 'openraster' : /^(psd|psb)$/.test(extension) ? 'photoshop' : /^(heic|heif|hif)$/.test(extension) ? 'heif' : /^(dng|cr2|cr3|nef|nrw|arw|raf|orf|rw2|pef|raw)$/.test(extension) ? 'raw' : 'image';
       const mime = file.type || ({ png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', webp: 'image/webp', bmp: 'image/bmp', svg: 'image/svg+xml' }[extension] ?? 'application/octet-stream');
       images.push({ name, kind, extension, data: kind === 'image' ? `data:${mime};base64,${data}` : data });
     }
     return images;
   }),
   exportImage: (data, format, resolution) => result(async () => shareBytes(withResolution(unbase64(data.split(',')[1]), format, resolution), (state.name ?? 'Image') + '.' + (format === 'jpeg' ? 'jpg' : format), 'image/' + format)),
-  exportFile: (data, format, name) => result(async () => shareBytes(unbase64(data), (name || state.name || 'Image') + '.' + format, { psd: 'image/vnd.adobe.photoshop', psb: 'image/vnd.adobe.photoshop', tiff: 'image/tiff', exr: 'image/x-exr', icc: 'application/vnd.iccprofile', zip: 'application/zip' }[format] ?? 'application/octet-stream')),
+  exportFile: (data, format, name) => result(async () => shareBytes(unbase64(data), (name || state.name || 'Image') + '.' + format, { ora: 'image/openraster', psd: 'image/vnd.adobe.photoshop', psb: 'image/vnd.adobe.photoshop', tiff: 'image/tiff', exr: 'image/x-exr', icc: 'application/vnd.iccprofile', zip: 'application/zip' }[format] ?? 'application/octet-stream')),
   reloadProject: (id) => result(async () => { const record = (await library.list()).find((project) => project.id === sessions.get(id)); return record ? library.read(record) : null; }),
   copyImage: (data) => result(() => Clipboard.write({ image: data })),
   developRaw: Capacitor.getPlatform() === 'ios' ? (file, settings) => nativeImages.developRaw({ data: file.data, extension: file.extension ?? 'raw', settings: settings ?? null }) : null,

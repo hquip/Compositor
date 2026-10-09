@@ -7,6 +7,7 @@ import { settingsDialog, numberField } from './settings-dialog.js';
 import { mappedSelection } from './raster-space.js';
 import { base64Bytes, decodePrecisionFile } from './precision-raster.js';
 import { decodeFloatTIFF } from './vendor/float-tiff.js';
+import { documentPixels } from './core.js';
 
 export async function channelPreview(source, profile) {
   const values = new Float32Array(source.width * source.height * (source.channels - 1));
@@ -29,7 +30,8 @@ export async function commitChannelSource(editor, layer, source, profile, name, 
   const apply = () => {
     editor.storePixels(layer, image, { filterCache: true, channelCache: true }); delete layer.text; delete layer.shape; delete layer.vectorPath;
     layer.workflow = { ...layer.workflow, type: 'channels', channelFile: replaceResource(editor, layer.workflow?.channelFile, bytes, 'channels'), mode: source.mode, bits: source.bits };
-    if (profile) { if (!layer.workflow.profileFile) layer.workflow.profileFile = addResource(editor, profile, 'icc'); } else delete layer.workflow.profileFile;
+    if (profile) layer.workflow.profileFile = replaceResource(editor, layer.workflow.profileFile, profile, 'icc'); else delete layer.workflow.profileFile;
+    if (documentPixels(editor) > editor.pixelBudget) throw new Error('The channel edit exceeds the document pixel budget.');
   };
   if (before) { apply(); editor.history.push(before, editor.snapshot(), name); editor.update(); } else editor.mutate(name, apply);
 }
@@ -37,12 +39,25 @@ export function installChannelWorkflows(editor, api) {
   const previous = editor.advancedCommand; let clipboard;
   const down = editor.pointerDown.bind(editor), paint = editor.paintSegment.bind(editor), up = editor.pointerUp.bind(editor);
   editor.pointerDown = (event) => {
-    if (editor.tool === 'brush' && editor.active?.workflow?.channelFile && editor.channelPaint?.layerID !== editor.active.id) { api.showError(new Error('Choose Paint channel in Channels before painting this layer.')); return; }
+    if (editor.tool === 'brush' && !editor.editMask && !editor.spaceDown && event.button === 0 && !editor.busy && !editor.gesture && !document.querySelector('dialog[open]')) {
+      const layer = editor.active, target = editor.channelPaint;
+      const matching = target?.layerID === layer?.id && target.documentID === editor.manifest?.documentID;
+      if (layer?.workflow?.channelFile) {
+        if (!matching) { api.showError(new Error('Choose Paint channel in Channels before painting this layer.')); return; }
+        try {
+          target.source = decodeChannelSource(resourceBytes(editor.assets, layer.workflow.channelFile));
+          target.profile = layer.workflow.profileFile ? resourceBytes(editor.assets, layer.workflow.profileFile) : null;
+          if (target.channel < 0 || target.channel >= target.source.channels || target.source.mode !== target.mode) { editor.channelPaint = null; throw new Error('Choose Paint channel in Channels before painting this layer.'); }
+        } catch (error) { api.showError(error); return; }
+      } else if (matching && !layer.filterSourceFile && !layer.hdrSourceFile) {
+        const image = editor.images.get(layer.id); if (image) target.source = { width: image.width, height: image.height, mode: 'RGB', bits: 8, channels: 4, data: Float32Array.from(image.getContext('2d').getImageData(0, 0, image.width, image.height).data, (v) => v / 255) };
+      }
+    }
     down(event);
   };
   editor.paintSegment = (from, to) => {
     const g = editor.gesture, target = editor.channelPaint;
-    if (g?.kind !== 'paint' || g.tool !== 'brush' || g.isMask || target?.layerID !== g.layer.id) return paint(from, to);
+    if (g?.kind !== 'paint' || g.tool !== 'brush' || g.isMask || target?.layerID !== g.layer.id || target.documentID !== editor.manifest.documentID) return paint(from, to);
     g.channelPaint ??= { source: structuredClone(target.source), channel: target.channel, profile: target.profile };
     const foreground = colorRecord(editor.color), value = .2126 * foreground.red + .7152 * foreground.green + .0722 * foreground.blue, color = editor.color; editor.color = '#ffffff'; try { paint(from, to); } finally { editor.color = color; }
     const mask = g.paint.getContext('2d').getImageData(0, 0, g.paint.width, g.paint.height).data, clip = g.clip?.getContext('2d').getImageData(0, 0, g.clip.width, g.clip.height).data;
@@ -76,6 +91,7 @@ export function installChannelWorkflows(editor, api) {
         const profileFile = profile && addResource(editor, profile, 'icc');
         editor.manifest.workflow = { ...editor.manifest.workflow, colorMode: options.mode, bits: Number(options.bits), profileFile: profileFile || undefined };
         for (const { layer, bytes, image } of prepared) { editor.storePixels(layer, image, { filterCache: true, channelCache: true }); layer.workflow = { ...layer.workflow, type: 'channels', channelFile: addResource(editor, bytes, 'channels'), profileFile: profileFile || undefined, mode: options.mode, bits: Number(options.bits) }; }
+        if (documentPixels(editor) > editor.pixelBudget) throw new Error('The channel edit exceeds the document pixel budget.');
       }); return true;
     }
     if (command === 'channels') {
@@ -83,7 +99,7 @@ export function installChannelWorkflows(editor, api) {
       let source = await sourceFor(editor, layer); const names = source.mode === 'CMYK' ? ['C', 'M', 'Y', 'K', 'A'] : source.mode === 'Lab' ? ['L', 'a', 'b', 'A'] : ['R', 'G', 'B', 'A'];
       const value = await settingsDialog('Channels', [{ key: 'channel', label: 'Channel', options: names, default: names[0] }, { key: 'operation', label: 'Channel operation', options: ['Inspect', 'Paint channel', 'Fill', 'Invert', 'Copy', 'Paste'], default: 'Inspect' }, numberField('value', 'Channel value', -128, 127, 0, .01)], {}); if (!value) return true;
       const channel = names.indexOf(value.channel);
-      if (value.operation === 'Paint channel') { editor.channelPaint = { layerID: layer.id, source, channel, profile: layer.workflow?.profileFile ? resourceBytes(editor.assets, layer.workflow.profileFile) : source.mode === 'RGB' ? await profileBytes('sRGB') : null }; editor.brushMode = 'Paint'; const select = document.querySelector('#brush-mode'); if (select) { select.value = 'Paint'; select.dispatchEvent(new Event('change')); } api.setTool('brush'); return true; }
+      if (value.operation === 'Paint channel') { editor.channelPaint = { documentID: editor.manifest.documentID, layerID: layer.id, mode: source.mode, source, channel, profile: layer.workflow?.profileFile ? resourceBytes(editor.assets, layer.workflow.profileFile) : source.mode === 'RGB' ? await profileBytes('sRGB') : null }; editor.brushMode = 'Paint'; const select = document.querySelector('#brush-mode'); if (select) { select.value = 'Paint'; select.dispatchEvent(new Event('change')); } api.setTool('brush'); return true; }
       if (value.operation === 'Inspect') { const image = surface(source.width, source.height), ctx = image.getContext('2d'), pixels = ctx.createImageData(source.width, source.height); for (let i = 0; i < source.width * source.height; i++) { let v = source.data[i * source.channels + channel]; if (source.mode === 'Lab' && channel < 3) v = channel ? (v + 128) / 255 : v / 100; pixels.data.set([v * 255, v * 255, v * 255, 255], i * 4); } ctx.putImageData(pixels, 0, 0); const preview = document.createElement('img'); preview.src = image.toDataURL(); preview.className = 'matte-preview'; await settingsDialog('Channel preview', [], {}, null, { previewElement: preview }); return true; }
       if (value.operation === 'Copy') { clipboard = { width: source.width, height: source.height, values: Float32Array.from({ length: source.width * source.height }, (_, i) => source.data[i * source.channels + channel]) }; return true; }
       if (value.operation === 'Paste' && (!clipboard || clipboard.width !== source.width || clipboard.height !== source.height)) throw new Error('The copied channel dimensions do not match.');

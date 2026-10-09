@@ -95,7 +95,9 @@ export function installTools(editor, api) {
       const ids = descendants(editor, selected(editor)); editor.gesture = { kind: 'group-move', point, before: editor.snapshot(), originals: editor.manifest.layers.filter((item) => ids.has(item.id)).map((item) => [item, structuredClone(item.transform), item.maskPlacement && structuredClone(item.maskPlacement)]) }; editor.overlay.setPointerCapture(event.pointerId); return;
     }
     if (editor.editMask && ['brush', 'eraser'].includes(tool) && layer?.maskFile) {
-      const source = editor.masks.get(layer.id), canvas = copySurface(source), paint = surface(source.width, source.height);
+      let target;
+      try { target = rasterTarget(editor, layer, true); } catch (error) { api.showError(error); return; }
+      const source = target.source, canvas = copySurface(source), paint = surface(source.width, source.height);
       const virtual = { ...layer, transform: layer.maskPlacement ?? layer.transform };
       editor.gesture = { kind: 'paint', before: editor.snapshot(), layer: virtual, target: layer, canvas, paint, source, previous: point, tool, isMask: true };
       editor.paintSegment(point, point); editor.overlay.setPointerCapture(event.pointerId); return;

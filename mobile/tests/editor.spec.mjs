@@ -10,6 +10,8 @@ import { advancedEXRCases } from '../../desktop/tests/exr-advanced-cases.mjs';
 import { professionalCases } from '../../desktop/tests/professional-cases.mjs';
 import { upstreamEnhancementCases } from '../../desktop/tests/upstream-enhancement-cases.mjs';
 import { fullWorkflowCases } from '../../desktop/tests/full-workflow-cases.mjs';
+import { channelRegressionCases } from '../../desktop/tests/channel-regression-cases.mjs';
+import { standardOpenRaster } from '../../desktop/tests/openraster-fixture.mjs';
 import fs from 'node:fs/promises';
 let sharedPage;
 vectorCases(test, expect, () => sharedPage);
@@ -22,6 +24,7 @@ enhancementCases(test, expect, () => sharedPage);
 professionalCases(test, expect, () => sharedPage);
 upstreamEnhancementCases(test, expect, () => sharedPage);
 fullWorkflowCases(test, expect, () => sharedPage);
+channelRegressionCases(test, expect, () => sharedPage);
 test.beforeEach(async ({ page }) => {
   sharedPage = page;
   page.on('pageerror', (error) => { throw error; });
@@ -36,6 +39,19 @@ test('OpenEXR: phone image picker imports the selected float source and export d
   await page.locator('#language').selectOption('zh-CN'); await page.evaluate(async () => { window.exrPickerOperation = (await import('./app.js')).runCommand('export-exr'); });
   const dialog = page.locator('dialog[open]').last(); await expect(dialog.getByRole('heading')).toHaveText('导出 OpenEXR'); await expect(dialog.getByLabel('输出色彩空间')).toBeVisible(); await dialog.getByRole('button', { name: '取消', exact: true }).click(); await page.evaluate(() => window.exrPickerOperation);
 });
+test('OpenRaster: phone image picker and sharing retain standard layers and the correct MIME type', async ({ page }) => {
+  const chooser = page.waitForEvent('filechooser'); await page.evaluate(async () => { window.oraPickerOperation = (await import('./app.js')).runCommand('import'); });
+  const picker = await chooser; expect(await picker.element().getAttribute('accept')).toContain('.ora'); await picker.setFiles({ name: 'Interchange.ORA', mimeType: 'image/openraster', buffer: Buffer.from(standardOpenRaster()) }); await page.evaluate(() => window.oraPickerOperation);
+  const inspect = () => page.evaluate(async () => { const e = (await import('./app.js')).editor, image = e.composite(true), pixel = (x, y) => [...image.getContext('2d').getImageData(x, y, 1, 1).data]; return { size: [e.manifest.width, e.manifest.height], layers: e.manifest.layers.map((l) => l.name), grouped: e.manifest.layers.slice(1).every((l) => l.parentID === e.manifest.layers[0].id), red: pixel(2, 3), blue: pixel(6, 5), clear: pixel(0, 0) }; });
+  const expected = { size: [16, 12], layers: ['Artwork', 'Red', 'Blue'], grouped: true, red: [255, 0, 0, 255], blue: [0, 0, 255, 255], clear: [0, 0, 0, 0] }; expect(await inspect()).toEqual(expected);
+  await page.evaluate(async () => {
+    Object.defineProperty(navigator, 'canShare', { configurable: true, value: () => true }); Object.defineProperty(navigator, 'share', { configurable: true, value: async ({ files }) => { window.oraShared = { type: files[0].type, name: files[0].name, data: [...new Uint8Array(await files[0].arrayBuffer())] }; } });
+    await (await import('./app.js')).runCommand('export-ora');
+  });
+  const shared = await page.evaluate(() => window.oraShared); expect(shared.type).toBe('image/openraster'); expect(shared.name).toBe('Interchange.ora');
+  const reopened = page.waitForEvent('filechooser'); await page.evaluate(async () => { window.oraPickerOperation = (await import('./app.js')).runCommand('import'); }); await (await reopened).setFiles({ name: 'Export.ora', mimeType: shared.type, buffer: Buffer.from(shared.data) }); await page.evaluate(() => window.oraPickerOperation); expect(await inspect()).toEqual(expected);
+});
+
 test('phone layout switches languages, paints, saves locally, and reopens the project', async ({ page }) => {
   await page.locator('#language').selectOption('zh-CN');
   await expect(page.getByRole('heading', { name: '欢迎使用 Compositor' })).toBeVisible();

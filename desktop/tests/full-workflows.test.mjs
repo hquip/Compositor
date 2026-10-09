@@ -17,6 +17,7 @@ import { surface } from '../renderer/raster.js';
 import { encodePNG8, decodePNG } from '../renderer/png-pixels.js';
 import { latestRelease } from '../renderer/update-notes.js';
 import { canonicalRuns, replaceTextContent, textSpans } from '../renderer/text-style.js';
+import { addResource, replaceResource } from '../renderer/workflow-assets.js';
 
 test('Dodge/Burn apply tonal ranges, preserve alpha and leave uncovered pixels intact', () => {
   const pixels = new Uint8ClampedArray([32, 32, 32, 255, 128, 128, 128, 128, 230, 230, 230, 255, 80, 100, 150, 0]);
@@ -61,6 +62,14 @@ test('authoritative RGB/CMYK/Lab channels retain precision, ranges and independe
     for (let c = 0; c < channels; c++) assert.ok(Math.abs(decoded.data[c] - values[c]) < (bits === 8 ? mode === 'Lab' && c < 3 ? 1 : .005 : bits === 16 ? .005 : .00001));
     const alpha = decoded.data[channels-1]; channelValue(decoded,0,0,1); assert.equal(decoded.data[channels-1],alpha);
   }
+});
+
+test('workflow resource replacement preserves shared and retained originals without growing unchanged resources', () => {
+  const editor = { manifest: { layers: [] }, assets: {} }, original = new Uint8Array([1, 2, 3]), changed = new Uint8Array([4, 5, 6]), file = addResource(editor, original, 'channels');
+  editor.manifest.layers = [{ workflow: { channelFile: file } }]; assert.equal(replaceResource(editor, file, original, 'channels'), file); assert.equal(editor.manifest.resources.length, 1);
+  assert.equal(replaceResource(editor, file, changed, 'channels'), file); assert.deepEqual([...Buffer.from(editor.assets[file], 'base64')], [...changed]);
+  editor.manifest.workflow = { retained: { layers: [{ channelFile: file }] } }; const copy = replaceResource(editor, file, original, 'channels'); assert.notEqual(copy, file); assert.deepEqual([...Buffer.from(editor.assets[file], 'base64')], [...changed]); assert.deepEqual([...Buffer.from(editor.assets[copy], 'base64')], [...original]);
+  assert.equal(replaceResource(editor, copy, original, 'channels'), copy); assert.equal(editor.manifest.resources.length, 2);
 });
 
 test('floating ICC conversion supports Lab without reducing RGB samples to 8 bits', async () => {

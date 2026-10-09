@@ -7,7 +7,16 @@ export function addResource(editor, bytes, kind) {
 }
 export function replaceResource(editor, file, bytes, kind) {
   if (!file || !(editor.manifest.resources ?? []).some((resource) => resource.file === file && resource.kind === kind)) return addResource(editor, bytes, kind);
-  editor.assets[file] = binaryBase64(bytes); return file;
+  const encoded = binaryBase64(bytes);
+  if (editor.assets[file] === encoded) return file;
+  let references = 0;
+  const visit = (value) => {
+    if (value === file) references++;
+    else if (value && typeof value === 'object') Object.values(value).forEach(visit);
+  };
+  visit(editor.manifest.workflow); for (const layer of editor.manifest.layers) visit(layer.workflow);
+  if (references > 1) return addResource(editor, bytes, kind);
+  editor.assets[file] = encoded; return file;
 }
 export function resourceBytes(assets, file) {
   if (!file || typeof assets?.[file] !== 'string') throw new Error('A professional workflow resource is missing.');
