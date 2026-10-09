@@ -1,6 +1,6 @@
 import { library } from './library-store.js';
 import { packHistory, unpackHistory } from './history-journal.js';
-import { layerAssetNames } from './filter-mix.js';
+import { snapshotAssetNames } from './filter-mix.js';
 
 function canonical(value) {
   if (Array.isArray(value)) return value.map(canonical);
@@ -9,7 +9,7 @@ function canonical(value) {
 }
 async function digest(text) { const bytes = await crypto.subtle.digest('SHA-256', new TextEncoder().encode(text)); return [...new Uint8Array(bytes)].map((value) => value.toString(16).padStart(2, '0')).join(''); }
 export async function projectFingerprint(snapshot) {
-  const names = [...new Set(snapshot.manifest.layers.flatMap(layerAssetNames))].sort(), hashes = [];
+  const names = snapshotAssetNames(snapshot).sort(), hashes = [];
   for (const name of names) hashes.push([name, await digest(snapshot.assets[name])]);
   return digest(JSON.stringify(canonical(snapshot.manifest)) + JSON.stringify(hashes));
 }

@@ -1,13 +1,13 @@
 import { surface } from './raster.js';
 import { decodeImage } from './compose.js';
-import { layerAssetNames } from './filter-mix.js';
+import { snapshotAssetNames } from './filter-mix.js';
 
 export function packHistory(history, current, limit = 16 * 1024 * 1024) {
   const assets = [], assetIDs = new Map(Object.entries(current.assets).map(([name, value]) => [value, name])), masks = [], maskIDs = new Map(), encodedMasks = new WeakMap();
   let bytes = 0;
   const maskPNG = (canvas) => { if (!encodedMasks.has(canvas)) encodedMasks.set(canvas, canvas.toDataURL('image/png')); return encodedMasks.get(canvas); };
   const pack = (snapshot) => {
-    const refs = {}; for (const layer of snapshot.manifest.layers) for (const name of layerAssetNames(layer)) if (name) { const value = snapshot.assets[name]; if (!assetIDs.has(value)) { assetIDs.set(value, assets.length); assets.push(value); } refs[name] = assetIDs.get(value); }
+    const refs = {}; for (const name of snapshotAssetNames(snapshot)) { const value = snapshot.assets[name]; if (typeof value !== 'string') throw new Error('The history contains a missing project resource.'); if (!assetIDs.has(value)) { assetIDs.set(value, assets.length); assets.push(value); } refs[name] = assetIDs.get(value); }
     const selection = snapshot.selection ? { ...snapshot.selection } : null; if (selection?.coverage) { const png = maskPNG(selection.coverage); if (!maskIDs.has(png)) { maskIDs.set(png, masks.length); masks.push(png); } selection.coverage = maskIDs.get(png); }
     return { manifest: structuredClone(snapshot.manifest), assets: refs, selection };
   };
@@ -17,7 +17,7 @@ export function packHistory(history, current, limit = 16 * 1024 * 1024) {
       const entry = entries[i], needed = new Set(), matte = new Map(); let cost = 0;
       for (const snapshot of [entry.before, entry.after]) {
         cost += JSON.stringify(snapshot.manifest).length * 2;
-        for (const layer of snapshot.manifest.layers) for (const name of layerAssetNames(layer)) if (name && !assetIDs.has(snapshot.assets[name])) needed.add(snapshot.assets[name]);
+        for (const name of snapshotAssetNames(snapshot)) { const value = snapshot.assets[name]; if (typeof value !== 'string') throw new Error('The history contains a missing project resource.'); if (!assetIDs.has(value)) needed.add(value); }
         if (snapshot.selection?.coverage) { const mask = snapshot.selection.coverage, png = maskPNG(mask); if (!maskIDs.has(png)) matte.set(png, mask.width * mask.height * 4); }
       }
       for (const value of needed) cost += value.length * 2; for (const [value, memory] of matte) cost += value.length * 2 + memory;

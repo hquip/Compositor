@@ -1,4 +1,32 @@
 export function fullWorkflowCases(test, expect, resolvePage) {
+  test('full workflows: recovery and saved history retain workflow resources and reject stale fingerprints', async () => {
+    const page = resolvePage();
+    const expected = await page.evaluate(async () => {
+      const { editor: e } = await import('./app.js'), { surface } = await import('./raster.js'), { addResource } = await import('./workflow-assets.js'), { createLayer } = await import('./core.js'), { encodeChannelSource } = await import('./channel-source.js');
+      e.newCanvas(8, 4);
+      const image = surface(8, 4); image.getContext('2d').fillStyle = '#ff0000'; image.getContext('2d').fillRect(0, 0, 8, 4); e.storePixels(e.active, image); e.history.reset();
+      const samples = new Float32Array(8 * 4 * 4); for (let i = 0; i < samples.length; i += 4) { samples[i] = .75; samples[i + 3] = 1; }
+      e.mutate('Add channel source', () => { e.active.workflow = { type: 'channels', channelFile: addResource(e, encodeChannelSource({ width: 8, height: 4, mode: 'RGB', bits: 16, channels: 4, data: samples }), 'channels'), mode: 'RGB', bits: 16 }; });
+      e.mutate('Add lookup', () => { const layer = createLayer('LUT', 8, 4); layer.workflow = { type: 'lut', file: addResource(e, new TextEncoder().encode('LUT_1D_SIZE 2\n1 1 1\n0 0 0'), 'lookup') }; e.manifest.layers.push(layer); });
+      await e.recovery.flush(); return { id: e.workspace.id, snapshot: e.projectSnapshot() };
+    });
+    page.once('dialog', (dialog) => dialog.accept()); await page.reload();
+    await expect(page.locator('html')).toHaveAttribute('data-editor-ready', 'true', { timeout: 30000 });
+    await page.evaluate(async (id) => (await import('./app.js')).editor.recovery.recover(id), expected.id);
+    expect(await page.evaluate(async () => (await import('./app.js')).editor.projectSnapshot())).toEqual(expected.snapshot);
+    const result = await page.evaluate(async () => {
+      const { editor: e } = await import('./app.js'), { projectFingerprint } = await import('./saved-history.js');
+      await e.restore('undo'); const undone = e.projectSnapshot(); await e.restore('redo'); const restored = e.projectSnapshot();
+      const original = await projectFingerprint(restored), file = restored.manifest.resources.find((r) => r.kind === 'lookup').file;
+      const altered = structuredClone(restored); altered.assets[file] = btoa('LUT_1D_SIZE 2\n0 0 0\n1 1 1');
+      return { undone, restored, fingerprintChanged: original !== await projectFingerprint(altered) };
+    });
+    expect(result.undone.manifest.layers).toHaveLength(1);
+    expect(result.undone.manifest.resources).toHaveLength(1);
+    expect(result.undone.assets[result.undone.manifest.resources[0].file]).toBe(expected.snapshot.assets[result.undone.manifest.resources[0].file]);
+    expect(result.restored).toEqual(expected.snapshot); expect(result.fingerprintChanged).toBe(true);
+  });
+
   test('full workflows: mixed Photoshop text sizes remain editable and survive another Photoshop export', async () => {
     const page = resolvePage();
     const result = await page.evaluate(async () => {

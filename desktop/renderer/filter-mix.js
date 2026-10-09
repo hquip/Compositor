@@ -1,6 +1,9 @@
 export function filterMaskName(layerID, filterID) { return `${layerID.toUpperCase()}.${filterID.toUpperCase()}.filter-mask.png`; }
 export function filterAssetNames(layer) { return (layer.filters ?? []).map((entry) => entry.maskFile).filter(Boolean); }
 export function layerAssetNames(layer) { return [layer.imageFile, layer.maskFile, layer.filterSourceFile, layer.hdrSourceFile, layer.exrSourceFile, ...filterAssetNames(layer)].filter(Boolean); }
+export function snapshotAssetNames(snapshot) {
+  return [...new Set([...snapshot.manifest.layers.flatMap(layerAssetNames), ...(snapshot.manifest.resources ?? []).map((resource) => resource.file)])];
+}
 export function filterMaskPixels(filters, assets) {
   return filters.reduce((sum, entry) => { if (!entry.maskFile) return sum; const bytes = Uint8Array.from(atob(assets[entry.maskFile].slice(0, 44)), (c) => c.charCodeAt(0)), view = new DataView(bytes.buffer); return sum + view.getUint32(16) * view.getUint32(20); }, 0);
 }

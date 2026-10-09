@@ -2,12 +2,12 @@ import { RecoveryStore } from './recovery-store.js';
 import { surface } from './raster.js';
 import { decodeImage } from './compose.js';
 import { packHistory, unpackHistory } from './history-journal.js';
-import { layerAssetNames } from './filter-mix.js';
+import { snapshotAssetNames } from './filter-mix.js';
 
 function packSnapshot(snapshot) {
   const selection = snapshot.selection && { ...snapshot.selection };
   if (selection?.coverage) selection.coverage = selection.coverage.toDataURL('image/png');
-  const files = new Set(snapshot.manifest.layers.flatMap(layerAssetNames));
+  const files = snapshotAssetNames(snapshot);
   return { manifest: structuredClone(snapshot.manifest), assets: Object.fromEntries([...files].map((file) => [file, snapshot.assets[file]])), selection };
 }
 async function unpackSnapshot(snapshot) {

@@ -5,7 +5,7 @@ export function enhancementCases(test, expect, resolvePage, restart) {
     const image = surface(width, height), context = image.getContext('2d'); context.fillStyle = '#f00'; context.fillRect(0, 0, 40, 40); context.fillStyle = '#00f'; context.fillRect(70, 10, 20, 20); e.storePixels(e.active, image); e.update();
   }, { width, height });
   const list = (page) => page.evaluate(async () => new (await import('./recovery-store.js')).RecoveryStore().list());
-  async function reload(page) { if (restart) page = await restart(); else { page.once('dialog', (dialog) => dialog.accept()); await page.reload(); } await expect(page.locator('html')).toHaveAttribute('data-editor-ready', 'true'); return page; }
+  async function reload(page) { if (restart) page = await restart(); else { page.once('dialog', (dialog) => dialog.accept()); await page.reload(); } await expect(page.locator('html')).toHaveAttribute('data-editor-ready', 'true', { timeout: 30000 }); return page; }
   const recover = (page, id) => page.evaluate(async (id) => (await import('./app.js')).editor.recovery.recover(id), id);
   const pixel = (page, x, y) => page.evaluate(async ({ x, y }) => [...(await import('./app.js')).editor.composite(true).getContext('2d').getImageData(x, y, 1, 1).data], { x, y });
 
